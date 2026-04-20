@@ -35,3 +35,39 @@ def load_outcomes(path: Path | str, chapters: Iterable[str]) -> pd.DataFrame:
     wanted = set(chapters)
     df = df[df["code"].isin(wanted)].copy()
     return df.sort_values(["CBSAFP", "year", "code"]).reset_index(drop=True)
+
+
+def build_lag_matrix(
+    env: pd.DataFrame,
+    outcomes: pd.DataFrame,
+    *,
+    column: str,
+    max_lag: int = 23,
+) -> np.ndarray:
+    """Build an (n_outcome_rows, max_lag+1) lag matrix for one env column.
+
+    Lag k -> month (12 - k % 12) of year (y - k // 12).
+    """
+    lookup = env.set_index(["CBSAFP", "year", "month"])[column]
+    n = len(outcomes)
+    L = np.empty((n, max_lag + 1), dtype=float)
+    for i, row in enumerate(outcomes.itertuples(index=False)):
+        c, y = row.CBSAFP, row.year
+        for k in range(max_lag + 1):
+            year_back = k // 12
+            month = 12 - (k % 12)
+            L[i, k] = lookup.get((c, y - year_back, month), np.nan)
+    return L
+
+
+def keep_outcomes_with_lookback(
+    outcomes: pd.DataFrame, env: pd.DataFrame, *, max_lag: int
+) -> pd.DataFrame:
+    """Drop outcome rows whose required env lookback is not fully present."""
+    need_years = max_lag // 12
+    min_env_year = env.groupby("CBSAFP")["year"].min()
+    keep = outcomes.apply(
+        lambda r: r["year"] - need_years >= min_env_year.get(r["CBSAFP"], r["year"] + 1),
+        axis=1,
+    )
+    return outcomes[keep].reset_index(drop=True)

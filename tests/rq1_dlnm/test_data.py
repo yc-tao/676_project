@@ -52,3 +52,41 @@ def test_load_outcomes_filters_chapters_and_returns_counts(tmp_path: Path):
     assert set(out["code"].unique()) == {"J00-J99", "I00-I99"}
     assert {"CBSAFP", "year", "code", "count", "count_patient"} <= set(out.columns)
     assert len(out) == 2 * 2 * 2
+
+
+def test_build_lag_matrix_indexes_lag0_as_december_of_outcome_year():
+    rows = []
+    for y in (2016, 2017):
+        for m in range(1, 13):
+            rows.append({
+                "CBSAFP": 10420, "year": y, "month": m,
+                "temp": float(y * 100 + m),
+            })
+    env = pd.DataFrame(rows)
+    outcomes = pd.DataFrame({
+        "CBSAFP": [10420], "year": [2017], "code": ["J00-J99"],
+        "count": [5], "count_patient": [100],
+    })
+
+    L = dmod.build_lag_matrix(env, outcomes, column="temp", max_lag=23)
+
+    assert L.shape == (1, 24)
+    assert L[0, 0] == 2017 * 100 + 12   # lag 0 = Dec of outcome year
+    assert L[0, 11] == 2017 * 100 + 1   # lag 11 = Jan of outcome year
+    assert L[0, 12] == 2016 * 100 + 12  # lag 12 = Dec of prior year
+    assert L[0, 23] == 2016 * 100 + 1   # lag 23 = Jan of prior year
+
+
+def test_build_lag_matrix_drops_rows_without_full_lookback():
+    rows = []
+    for y in (2016, 2017):
+        for m in range(1, 13):
+            rows.append({"CBSAFP": 10420, "year": y, "month": m, "temp": 1.0})
+    env = pd.DataFrame(rows)
+    outcomes = pd.DataFrame({
+        "CBSAFP": [10420, 10420], "year": [2016, 2017],
+        "code": ["J00-J99", "J00-J99"], "count": [5, 5], "count_patient": [100, 100],
+    })
+
+    kept = dmod.keep_outcomes_with_lookback(outcomes, env, max_lag=23)
+    assert kept["year"].tolist() == [2017]  # 2016 can't see 2015, dropped
