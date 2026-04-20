@@ -27,3 +27,11 @@ def load_env_monthly(dataset_root: Path | str, cbsa_list: Iterable[int]) -> pd.D
     df = air.merge(clim, on=KEY, how="inner").merge(green, on=KEY, how="inner")
     df = df[df["CBSAFP"].isin(list(cbsa_list))].copy()
     return df.sort_values(KEY).reset_index(drop=True)
+
+
+def load_outcomes(path: Path | str, chapters: Iterable[str]) -> pd.DataFrame:
+    """Load yearly ICD L1 prevalence and filter to the requested chapters."""
+    df = pd.read_csv(path, usecols=["CBSAFP", "year", "code", "count", "count_patient"])
+    wanted = set(chapters)
+    df = df[df["code"].isin(wanted)].copy()
+    return df.sort_values(["CBSAFP", "year", "code"]).reset_index(drop=True)

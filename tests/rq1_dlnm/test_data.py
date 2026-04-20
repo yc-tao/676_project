@@ -32,3 +32,23 @@ def test_load_env_monthly_joins_three_tables_on_cbsa_year_month(tmp_path: Path):
     assert {"ozone", "temperature_2m", "NDVI"} <= set(out.columns)
     assert len(out) == 24
     assert out["CBSAFP"].unique().tolist() == [10420]
+
+
+def test_load_outcomes_filters_chapters_and_returns_counts(tmp_path: Path):
+    rows = []
+    for c in (10420, 11740):
+        for y in (2016, 2017):
+            for code in ("J00-J99", "I00-I99", "X99-X99"):
+                rows.append({
+                    "CBSAFP": c, "year": y, "code": code,
+                    "count": 5, "count_patient": 100, "prevalence": 0.05,
+                })
+    df = pd.DataFrame(rows)
+    path = tmp_path / "icdl1_prev_ohio.csv"
+    df.to_csv(path, index=False)
+
+    out = dmod.load_outcomes(path, chapters=["J00-J99", "I00-I99"])
+
+    assert set(out["code"].unique()) == {"J00-J99", "I00-I99"}
+    assert {"CBSAFP", "year", "code", "count", "count_patient"} <= set(out.columns)
+    assert len(out) == 2 * 2 * 2
