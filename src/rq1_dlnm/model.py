@@ -46,3 +46,65 @@ class PoissonDLNM(nn.Module):
             + offset
         )
         return torch.exp(log_mu)
+
+
+@dataclass
+class FitResult:
+    loss: float
+    steps_run: int
+    converged: bool
+
+
+def fit(
+    model: PoissonDLNM,
+    *,
+    X_cb: torch.Tensor,
+    cbsa_idx: torch.Tensor,
+    year: torch.Tensor,
+    miss: torch.Tensor,
+    offset: torch.Tensor,
+    count: torch.Tensor,
+    ridge: float = 1e-2,
+    steps: int = 500,
+    lr: float = 5e-2,
+    device: str = "mps",
+    patience: int = 20,
+    tol: float = 1e-6,
+) -> FitResult:
+    """Fit the PoissonDLNM by Adam on negative Poisson log-likelihood + ridge on beta."""
+    dev = torch.device(device if _device_available(device) else "cpu")
+    model.to(dev)
+    X = X_cb.to(dev)
+    ci = cbsa_idx.to(dev)
+    yr = year.to(dev)
+    ms = miss.to(dev)
+    off = offset.to(dev)
+    y = count.to(dev)
+    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    prev = float("inf")
+    stable = 0
+    for step in range(1, steps + 1):
+        opt.zero_grad()
+        mu = model(X, cbsa_idx=ci, year=yr, miss=ms, offset=off)
+        nll = (mu - y * torch.log(mu + 1e-12)).sum()
+        penalty = ridge * (model.beta ** 2).sum()
+        loss = nll + penalty
+        loss.backward()
+        opt.step()
+        cur = float(loss.detach().cpu())
+        if abs(prev - cur) < tol:
+            stable += 1
+            if stable >= patience:
+                return FitResult(loss=cur, steps_run=step, converged=True)
+        else:
+            stable = 0
+        prev = cur
+    return FitResult(loss=prev, steps_run=steps, converged=False)
+
+
+def _device_available(device: str) -> bool:
+    if device == "mps":
+        return torch.backends.mps.is_available()
+    if device == "cuda":
+        return torch.cuda.is_available()
+    return True

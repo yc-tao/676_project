@@ -21,3 +21,26 @@ def test_forward_produces_positive_means_matching_shape():
 
     assert mu.shape == (n,)
     assert (mu > 0).all()
+
+
+def test_fit_recovers_linear_effect_on_synthetic_data():
+    torch.manual_seed(0)
+    n, n_cb, n_cbsa = 200, 3, 2
+    X = torch.randn(n, n_cb)
+    true_beta = torch.tensor([0.3, -0.2, 0.1])
+    cbsa_idx = torch.randint(0, n_cbsa, (n,))
+    year = torch.zeros(n)
+    miss = torch.zeros(n)
+    offset = torch.log(torch.full((n,), 100.0))
+    log_mu = X @ true_beta + offset
+    y = torch.poisson(torch.exp(log_mu)).to(torch.float32)
+
+    from rq1_dlnm.model import PoissonDLNM, fit
+    m = PoissonDLNM(n_cb=n_cb, n_cbsa=n_cbsa)
+    result = fit(
+        m, X_cb=X, cbsa_idx=cbsa_idx, year=year, miss=miss,
+        offset=offset, count=y, ridge=1e-4, steps=800, lr=5e-2, device="cpu",
+    )
+    assert result.converged or result.steps_run == 800
+    est = m.beta.detach().cpu()
+    assert torch.allclose(est, true_beta, atol=0.08)
