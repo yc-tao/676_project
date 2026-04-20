@@ -8,7 +8,7 @@ import pytest
 
 @pytest.fixture(scope="session")
 def synthetic_monthly_env():
-    """14 fake CBSAs x 84 months x 2 exposures, known smooth structure."""
+    """14 fake CBSAs, 7 years x 12 months each, 2 seasonal exposures (temp, ozone)."""
     rng = np.random.default_rng(0)
     cbsas = [10000 + i for i in range(14)]
     rows = []
@@ -28,7 +28,7 @@ def synthetic_monthly_env():
 
 @pytest.fixture(scope="session")
 def synthetic_outcomes():
-    """Yearly outcome with known linear dependence on same-year mean temp."""
+    """Yearly outcome counts for 14 CBSAs x 7 years, constant rate (no env coupling)."""
     rng = np.random.default_rng(1)
     cbsas = [10000 + i for i in range(14)]
     rows = []
