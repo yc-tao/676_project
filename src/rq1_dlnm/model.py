@@ -108,3 +108,31 @@ def _device_available(device: str) -> bool:
     if device == "cuda":
         return torch.cuda.is_available()
     return True
+
+
+def observed_information(
+    model: PoissonDLNM,
+    *,
+    X_cb: torch.Tensor,
+    cbsa_idx: torch.Tensor,
+    year: torch.Tensor,
+    miss: torch.Tensor,
+    offset: torch.Tensor,
+    ridge: float,
+) -> torch.Tensor:
+    """Observed information for `beta` at the current params: X^T diag(mu) X + 2*ridge*I."""
+    model.eval()
+    with torch.no_grad():
+        dev = X_cb.device
+        mu = model(
+            X_cb,
+            cbsa_idx=cbsa_idx.to(dev),
+            year=year.to(dev),
+            miss=miss.to(dev),
+            offset=offset.to(dev),
+        )
+        W = torch.diag(mu)
+        H = X_cb.T @ W @ X_cb + 2 * ridge * torch.eye(X_cb.shape[1], device=dev)
+        # symmetrize against numerical drift
+        H = 0.5 * (H + H.T)
+    return H.cpu()

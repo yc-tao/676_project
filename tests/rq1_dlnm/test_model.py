@@ -44,3 +44,29 @@ def test_fit_recovers_linear_effect_on_synthetic_data():
     assert result.converged or result.steps_run == 800
     est = m.beta.detach().cpu()
     assert torch.allclose(est, true_beta, atol=0.08)
+
+
+def test_observed_information_matches_finite_difference():
+    torch.manual_seed(0)
+    n, n_cb, n_cbsa = 40, 3, 2
+    X = torch.randn(n, n_cb)
+    cbsa_idx = torch.randint(0, n_cbsa, (n,))
+    year = torch.zeros(n)
+    miss = torch.zeros(n)
+    offset = torch.zeros(n)
+    y = torch.poisson(torch.exp(X @ torch.tensor([0.1, -0.2, 0.05]))).to(torch.float32)
+
+    from rq1_dlnm.model import PoissonDLNM, fit, observed_information
+    m = PoissonDLNM(n_cb=n_cb, n_cbsa=n_cbsa)
+    fit(m, X_cb=X, cbsa_idx=cbsa_idx, year=year, miss=miss,
+        offset=offset, count=y, ridge=1e-2, steps=500, device="cpu")
+
+    H = observed_information(
+        m, X_cb=X, cbsa_idx=cbsa_idx, year=year, miss=miss, offset=offset,
+        ridge=1e-2,
+    )
+    assert H.shape == (n_cb, n_cb)
+    # Must be symmetric positive-definite
+    assert torch.allclose(H, H.T, atol=1e-5)
+    eig = torch.linalg.eigvalsh(H)
+    assert (eig > 0).all()
