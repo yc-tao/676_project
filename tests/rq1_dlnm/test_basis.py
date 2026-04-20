@@ -28,3 +28,16 @@ def test_natural_spline_is_exactly_linear_outside_boundary_knots():
     # second differences of each column should be ~0 (linearity check)
     second_diff = B[2:] - 2 * B[1:-1] + B[:-2]
     assert torch.allclose(second_diff, torch.zeros_like(second_diff), atol=1e-4)
+
+
+def test_cross_basis_shape_and_linear_sanity():
+    # lag matrix L: 5 outcome rows x 24 lags
+    n, nlag = 5, 24
+    L = torch.arange(n * nlag, dtype=torch.float32).reshape(n, nlag)
+    var_knots = torch.quantile(L.flatten(), torch.tensor([0.25, 0.5, 0.75]))
+    lag_knots = torch.tensor([6.0, 12.0, 18.0])
+    X = bmod.cross_basis(L, var_knots=var_knots, lag_knots=lag_knots)
+    assert X.shape == (n, 3 * 3)
+    # deterministic given same inputs
+    X2 = bmod.cross_basis(L, var_knots=var_knots, lag_knots=lag_knots)
+    assert torch.equal(X, X2)

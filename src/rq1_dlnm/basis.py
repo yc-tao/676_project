@@ -37,3 +37,27 @@ def natural_spline(x: torch.Tensor, knots: torch.Tensor) -> torch.Tensor:
     if B.shape[1] < k:
         B = torch.cat([B, torch.zeros(x.shape[0], k - B.shape[1], dtype=B.dtype)], dim=1)
     return B.to(torch.float32)
+
+
+def cross_basis(
+    L: torch.Tensor,
+    *,
+    var_knots: torch.Tensor,
+    lag_knots: torch.Tensor,
+) -> torch.Tensor:
+    """Cross-basis X with shape (n_rows, df_var * df_lag).
+
+    Builds the variable basis on each lag column and the lag basis on the
+    lag indices, then column-wise tensor-products and sums over lags per
+    standard DLNM construction: X[i, v*D_lag + l] = sum_k Bv(L[i,k])[v] * Bl(k)[l].
+    """
+    n, nlag = L.shape
+    df_var = var_knots.numel()
+    df_lag = lag_knots.numel()
+    lag_idx = torch.arange(nlag, dtype=torch.float32)
+    Bl = natural_spline(lag_idx, lag_knots)  # (nlag, df_lag)
+    # Bv_per_lag[i, k, v] = variable basis for L[i, k]
+    Bv_per_lag = natural_spline(L.reshape(-1), var_knots).reshape(n, nlag, df_var)
+    # einsum: sum over k of Bv[i,k,v] * Bl[k,l] -> (n, v, l)
+    cb = torch.einsum("nkv,kl->nvl", Bv_per_lag, Bl)
+    return cb.reshape(n, df_var * df_lag)
