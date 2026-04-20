@@ -71,3 +71,17 @@ def keep_outcomes_with_lookback(
         axis=1,
     )
     return outcomes[keep].reset_index(drop=True)
+
+
+def impute_and_flag(L: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Row-wise median imputation. Returns (filled, miss_frac per row)."""
+    miss_frac = np.isnan(L).mean(axis=1)
+    filled = L.copy()
+    for i in range(L.shape[0]):
+        row = L[i]
+        if np.isnan(row).any():
+            med = np.nanmedian(row)
+            if np.isnan(med):
+                med = 0.0
+            filled[i] = np.where(np.isnan(row), med, row)
+    return filled, miss_frac

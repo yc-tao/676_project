@@ -90,3 +90,18 @@ def test_build_lag_matrix_drops_rows_without_full_lookback():
 
     kept = dmod.keep_outcomes_with_lookback(outcomes, env, max_lag=23)
     assert kept["year"].tolist() == [2017]  # 2016 can't see 2015, dropped
+
+
+def test_impute_and_flag_fills_nans_and_reports_fraction():
+    # 2 rows, 24 lags, half missing in row 0, none in row 1
+    L = np.arange(48, dtype=float).reshape(2, 24)
+    L[0, :12] = np.nan
+
+    filled, miss_frac = dmod.impute_and_flag(L)
+
+    assert not np.isnan(filled).any()
+    assert miss_frac.shape == (2,)
+    assert miss_frac[0] == 0.5
+    assert miss_frac[1] == 0.0
+    # median imputation: per-row median of the present values
+    assert np.allclose(filled[0, :12], np.nanmedian(L[0]))
