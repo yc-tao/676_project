@@ -168,3 +168,12 @@ rq1_dlnm_demo.ipynb
 ```
 
 No additional infra, no configs, no CLI flags. The notebook and `run_sweep.py` are the only entry points.
+
+### Observed sanity (post-implementation, 2026-04-20)
+
+Temperature → J00-J99 one-shot sanity run produced:
+- center RR = 1.177
+- tails mean RR = 14.569
+- Shape: U (cold tail dominant: RR ≈ 28 at 266.57 K / −6.6 °C vs RR ≈ 1.02 at 299.54 K / 26.4 °C; reference = median temperature)
+
+Notes: with only 78 outcome rows and df=3 var × df=3 lag standardized polynomial basis, point estimates are usable for direction but asymptotic CIs (observed-info Hessian) underestimate uncertainty. Formal uncertainty quantification is listed in spec §8 follow-up (cluster bootstrap). The cold-side magnitude is plausibly inflated by polynomial tail behavior on a small sample and should be interpreted directionally rather than as a calibrated effect size.
