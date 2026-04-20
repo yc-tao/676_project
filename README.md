@@ -42,3 +42,21 @@ This produces:
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Running RQ1 DLNM (proof-of-concept)
+
+```
+pixi install
+pixi run pytest -q
+pixi run python -c "from rq1_dlnm.run_sweep import run; run()"
+```
+
+Outputs land in `results/summary.csv` and `results/figures/`. See the
+design spec at `docs/superpowers/specs/2026-04-20-rq1-dlnm-design.md`
+and the plan at `docs/superpowers/plans/2026-04-20-rq1-dlnm.md`.
+
+The full sweep runs ~4 minutes on Apple Silicon (MPS) — 108 (exposure,
+chapter) pairs. This is a proof-of-concept: confidence intervals come
+from the observed-information Hessian at the Adam optimum and are known
+to be optimistic on a 78-row panel. Cluster bootstrap CIs are listed as
+follow-up in spec §8.
