@@ -26,7 +26,7 @@ DF_VAR = 3
 DF_LAG = 3
 MAX_LAG = 23
 RIDGE = 1e-2
-STEPS = 500
+STEPS = 2000
 LR = 5e-2
 
 
@@ -90,7 +90,12 @@ def run(
             L = build_lag_matrix(env, out, column=exp_col, max_lag=MAX_LAG)
             L, miss = impute_and_flag(L)
             L_t = torch.tensor(L, dtype=torch.float32)
-            v_knots = torch.quantile(L_t.flatten(), torch.tensor([0.25, 0.5, 0.75]))
+            # Knots anchor the standardized polynomial basis. We use (min, p50,
+            # max) so z = (x - median) / (half-range) stays in [-1, 1] across
+            # the observed L, keeping z^2 and z^3 bounded.
+            v_knots = torch.tensor([
+                float(L_t.min()), float(L_t.flatten().median()), float(L_t.max()),
+            ])
             X = cross_basis(L_t, var_knots=v_knots, lag_knots=lag_knots)
 
             cbsa_order = {c: i for i, c in enumerate(sorted(out["CBSAFP"].unique()))}

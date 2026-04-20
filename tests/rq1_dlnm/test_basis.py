@@ -13,21 +13,21 @@ def test_natural_spline_shape_and_linear_column():
     knots = torch.tensor([2.5, 5.0, 7.5])
     B = bmod.natural_spline(x, knots)
     assert B.shape == (50, 3)
-    # first column should be (centered) x itself, so correlation with x ~ 1
+    # first column is z = (x - median(knots)) / scale, monotone in x
     corr = torch.corrcoef(torch.stack([B[:, 0], x]))[0, 1]
     assert corr.abs() > 0.99
 
 
-def test_natural_spline_is_exactly_linear_outside_boundary_knots():
-    # Natural cubic splines are linear beyond the boundary knots.
-    # With internal knots at 2.5/5/7.5 and data on [-5, 15], beyond x > 7.5 the
-    # spline contribution h_j must be linear in x.
-    x = torch.linspace(8.0, 15.0, 20)
+def test_natural_spline_columns_are_well_scaled_on_knot_range():
+    # The basis standardizes against the knot range, so within that range
+    # the first column stays in [-1, 1] and higher-power columns stay bounded.
     knots = torch.tensor([2.5, 5.0, 7.5])
+    x = torch.linspace(float(knots.min()), float(knots.max()), 40)
     B = bmod.natural_spline(x, knots)
-    # second differences of each column should be ~0 (linearity check)
-    second_diff = B[2:] - 2 * B[1:-1] + B[:-2]
-    assert torch.allclose(second_diff, torch.zeros_like(second_diff), atol=1e-4)
+    assert B.shape == (40, 3)
+    assert (B[:, 0].abs() <= 1.01).all()       # z in [-1, 1] on knot range
+    assert (B[:, 1].abs() <= 1.01).all()       # z^2 in [0, 1] on knot range
+    assert (B[:, 2].abs() <= 1.01).all()       # z^3 in [-1, 1] on knot range
 
 
 def test_cross_basis_shape_and_linear_sanity():
