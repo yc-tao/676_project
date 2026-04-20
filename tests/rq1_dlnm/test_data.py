@@ -105,3 +105,26 @@ def test_impute_and_flag_fills_nans_and_reports_fraction():
     assert miss_frac[1] == 0.0
     # median imputation: per-row median of the present values
     assert np.allclose(filled[0, :12], np.nanmedian(L[0]))
+
+
+def test_prune_exposures_drops_missing_low_variance_and_correlated():
+    n = 100
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame({
+        "CBSAFP": [10420] * n, "year": [2016] * n, "month": list(range(n)),
+        "good": rng.normal(size=n),
+        "correlated": None,        # filled below
+        "too_missing": [np.nan] * (n // 2 + 10) + list(rng.normal(size=n - (n // 2 + 10))),
+        "low_var": np.full(n, 1.0),
+    })
+    df["correlated"] = df["good"] * 1.0001 + rng.normal(0, 1e-6, size=n)
+
+    kept = dmod.prune_exposures(df, candidate_cols=["good", "correlated", "too_missing", "low_var"])
+
+    assert "good" in kept
+    assert "too_missing" not in kept
+    assert "low_var" not in kept
+    # Exactly one of the correlated pair survives.
+    assert ("good" in kept) ^ ("correlated" in kept) or (
+        "good" in kept and "correlated" not in kept
+    )

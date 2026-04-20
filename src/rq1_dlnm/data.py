@@ -85,3 +85,53 @@ def impute_and_flag(L: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
                 med = 0.0
             filled[i] = np.where(np.isnan(row), med, row)
     return filled, miss_frac
+
+
+def prune_exposures(
+    env: pd.DataFrame,
+    candidate_cols: list[str],
+    *,
+    max_missing: float = 0.5,
+    min_rel_std: float = 0.01,
+    corr_cutoff: float = 0.98,
+) -> list[str]:
+    """Return the subset of candidate_cols that survives the three-step prune."""
+    kept: list[str] = []
+    for col in candidate_cols:
+        s = env[col]
+        if s.isna().mean() > max_missing:
+            continue
+        mean = s.mean()
+        std = s.std(ddof=0)
+        denom = abs(mean) if abs(mean) > 1e-12 else 1.0
+        if std == 0 or std / denom < min_rel_std:
+            continue
+        kept.append(col)
+
+    if len(kept) <= 1:
+        return kept
+
+    data = env[kept].to_numpy(dtype=float)
+    corr = np.corrcoef(data, rowvar=False)
+    dropped: set[int] = set()
+    variances = env[kept].var(ddof=0).to_numpy()
+    # Relative tolerance for treating variances as a tie; tie-break prefers
+    # the earlier column in candidate_cols for deterministic output.
+    rtol = 1e-3
+    for i in range(len(kept)):
+        if i in dropped:
+            continue
+        for j in range(i + 1, len(kept)):
+            if j in dropped:
+                continue
+            if abs(corr[i, j]) >= corr_cutoff:
+                vi, vj = variances[i], variances[j]
+                scale = max(abs(vi), abs(vj), 1e-12)
+                if abs(vi - vj) / scale < rtol or vi >= vj:
+                    drop = j
+                else:
+                    drop = i
+                dropped.add(drop)
+                if drop == i:
+                    break
+    return [kept[i] for i in range(len(kept)) if i not in dropped]
