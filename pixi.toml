@@ -1,0 +1,30 @@
+[project]
+name = "rq1_dlnm"
+version = "0.1.0"
+description = "RQ1 DLNM proof-of-concept for SatHealth Ohio"
+channels = ["conda-forge", "pytorch"]
+platforms = ["osx-arm64"]
+
+[dependencies]
+python = ">=3.11"
+numpy = "*"
+pandas = "*"
+scipy = "*"
+matplotlib = "*"
+pytorch = "*"
+jupyter = "*"
+nbformat = "*"
+nbconvert = "*"
+ipython = "*"
+
+[feature.dev.dependencies]
+pytest = "*"
+
+[environments]
+default = { features = ["dev"], solve-group = "default" }
+
+[pypi-dependencies]
+rq1_dlnm = { path = ".", editable = true }
+
+[tasks]
+test = "pytest -q"
