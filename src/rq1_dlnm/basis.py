@@ -15,7 +15,7 @@ from __future__ import annotations
 import torch
 
 
-def natural_spline(x: torch.Tensor, knots: torch.Tensor) -> torch.Tensor:
+def poly_basis(x: torch.Tensor, knots: torch.Tensor) -> torch.Tensor:
     """Standardized polynomial basis of degree df = len(knots).
 
     The `knots` tensor is used only to compute a reference location and scale
@@ -53,7 +53,7 @@ def cross_basis(
     df_var = var_knots.numel()
     df_lag = lag_knots.numel()
     lag_idx = torch.arange(nlag, dtype=torch.float32)
-    Bl = natural_spline(lag_idx, lag_knots)                         # (nlag, df_lag)
-    Bv_per_lag = natural_spline(L.reshape(-1), var_knots).reshape(n, nlag, df_var)
+    Bl = poly_basis(lag_idx, lag_knots)                         # (nlag, df_lag)
+    Bv_per_lag = poly_basis(L.reshape(-1), var_knots).reshape(n, nlag, df_var)
     cb = torch.einsum("nkv,kl->nvl", Bv_per_lag, Bl)
     return cb.reshape(n, df_var * df_lag)

@@ -74,16 +74,24 @@ def keep_outcomes_with_lookback(
 
 
 def impute_and_flag(L: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Row-wise median imputation. Returns (filled, miss_frac per row)."""
+    """Row-wise median imputation. Returns (filled, miss_frac per row).
+
+    All-NaN rows get filled with 0.0 (no row median exists) and marked with
+    miss_frac == 1.0, so the downstream GLM can carry the miss-fraction
+    covariate but callers should expect these rows to carry no exposure
+    signal.
+    """
     miss_frac = np.isnan(L).mean(axis=1)
     filled = L.copy()
     for i in range(L.shape[0]):
         row = L[i]
-        if np.isnan(row).any():
-            med = np.nanmedian(row)
-            if np.isnan(med):
-                med = 0.0
-            filled[i] = np.where(np.isnan(row), med, row)
+        if not np.isnan(row).any():
+            continue
+        if miss_frac[i] >= 1.0:
+            filled[i] = 0.0
+            continue
+        med = np.nanmedian(row)
+        filled[i] = np.where(np.isnan(row), med, row)
     return filled, miss_frac
 
 

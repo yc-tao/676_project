@@ -111,7 +111,6 @@ def run(
                 offset=offset, count=count,
                 ridge=RIDGE, steps=STEPS, lr=LR, device=_device(),
             )
-            m.to("cpu")
             H = observed_information(
                 m, X_cb=X, cbsa_idx=cbsa_idx, year=year, miss=miss_t,
                 offset=offset, ridge=RIDGE,

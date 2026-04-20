@@ -56,10 +56,10 @@ def _lagwise_basis_row(v: float, *, var_knots: torch.Tensor, lag_knots: torch.Te
     Returns shape (nlag, df_var * df_lag) whose row sum equals the full
     row used in `cumulative_rr_contrast`.
     """
-    from rq1_dlnm.basis import natural_spline
+    from rq1_dlnm.basis import poly_basis
     lag_idx = torch.arange(nlag, dtype=torch.float32)
-    Bl = natural_spline(lag_idx, lag_knots)               # (nlag, df_lag)
-    Bv = natural_spline(torch.full((1,), float(v)), var_knots).squeeze(0)  # (df_var,)
+    Bl = poly_basis(lag_idx, lag_knots)               # (nlag, df_lag)
+    Bv = poly_basis(torch.full((1,), float(v)), var_knots).squeeze(0)  # (df_var,)
     # per-lag row: outer(Bv, Bl[k]) flattened
     rows = torch.einsum("v,kl->kvl", Bv, Bl).reshape(nlag, -1)
     return rows

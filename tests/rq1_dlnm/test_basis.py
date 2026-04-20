@@ -8,22 +8,22 @@ import torch
 from rq1_dlnm import basis as bmod
 
 
-def test_natural_spline_shape_and_linear_column():
+def test_poly_basis_shape_and_linear_column():
     x = torch.linspace(0.0, 10.0, 50)
     knots = torch.tensor([2.5, 5.0, 7.5])
-    B = bmod.natural_spline(x, knots)
+    B = bmod.poly_basis(x, knots)
     assert B.shape == (50, 3)
     # first column is z = (x - median(knots)) / scale, monotone in x
     corr = torch.corrcoef(torch.stack([B[:, 0], x]))[0, 1]
     assert corr.abs() > 0.99
 
 
-def test_natural_spline_columns_are_well_scaled_on_knot_range():
+def test_poly_basis_columns_are_well_scaled_on_knot_range():
     # The basis standardizes against the knot range, so within that range
     # the first column stays in [-1, 1] and higher-power columns stay bounded.
     knots = torch.tensor([2.5, 5.0, 7.5])
     x = torch.linspace(float(knots.min()), float(knots.max()), 40)
-    B = bmod.natural_spline(x, knots)
+    B = bmod.poly_basis(x, knots)
     assert B.shape == (40, 3)
     assert (B[:, 0].abs() <= 1.01).all()       # z in [-1, 1] on knot range
     assert (B[:, 1].abs() <= 1.01).all()       # z^2 in [0, 1] on knot range

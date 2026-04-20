@@ -52,11 +52,11 @@ This is feasibility work, not causal inference. Claims stay correlational.
 
 For exposure `e` and outcome-year `y`, lag `k ∈ {0..23}` corresponds to month `m = 12 - (k mod 12)` of year `y - (k // 12)` — i.e. lag 0 is December of year `y`, lag 11 is January of year `y`, lag 23 is January of year `y-1`. Exact indexing lives in `data.build_lag_matrix`.
 
-- **Exposure basis:** natural spline (ns), `df_var = 3`, knots at the 25th/50th/75th percentiles of `e` in the training window.
-- **Lag basis:** natural spline, `df_lag = 3`, knots at lags 6, 12, 18.
+- **Exposure basis:** standardized degree-3 polynomial (`z, z^2, z^3` where `z = (e - median) / half-range`), `df_var = 3`. Knots `(min, median, max)` of `e` in the training window define the standardization; they are not classical spline knots.
+- **Lag basis:** same construction, `df_lag = 3`, knots `(0, 11, 23)` mapped from observed lag indices.
 - **Cross-basis matrix:** column-wise tensor product → 3 × 3 = **9 columns per exposure**.
 
-Implementation: roll our own ns on GPU-friendly tensors. No `rpy2`, no `dlnm` R dep. Reference: Wood (2006) §5.3 definition of a natural cubic spline basis.
+Implementation: pure torch tensors, runs on MPS. No `rpy2`, no `dlnm` R dep. Originally we planned a rolled-own natural cubic spline (Wood 2006 §5.3) but the hand-built basis left zero-padded columns at df=3, so we switched to the standardized polynomial — equivalent flexibility with well-conditioned values for Adam.
 
 ### 4.2 Poisson GLM
 

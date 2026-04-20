@@ -123,16 +123,17 @@ def observed_information(
     """Observed information for `beta` at the current params: X^T diag(mu) X + 2*ridge*I."""
     model.eval()
     with torch.no_grad():
-        dev = X_cb.device
+        dev = next(model.parameters()).device
+        X = X_cb.to(dev)
         mu = model(
-            X_cb,
+            X,
             cbsa_idx=cbsa_idx.to(dev),
             year=year.to(dev),
             miss=miss.to(dev),
             offset=offset.to(dev),
         )
         W = torch.diag(mu)
-        H = X_cb.T @ W @ X_cb + 2 * ridge * torch.eye(X_cb.shape[1], device=dev)
+        H = X.T @ W @ X + 2 * ridge * torch.eye(X.shape[1], device=dev)
         # symmetrize against numerical drift
         H = 0.5 * (H + H.T)
     return H.cpu()
