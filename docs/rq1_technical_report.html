@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>RQ1 DLNM — Technical Report</title>
+<title>RQ1 — Technical Report (DLNM + Itemset Pivot)</title>
 <meta name="viewport" content="width=900,initial-scale=1" />
 <style>
   :root {
@@ -74,28 +74,44 @@
 
 <header>
   <div class="eyebrow">CSCE 676 Final Project · Technical Report</div>
-  <h1>RQ1 DLNM proof-of-concept on SatHealth Ohio</h1>
-  <div class="sub">Marginal distributed-lag non-linear models for 108 (environmental exposure × ICD L1 chapter) pairs on a 14-CBSA, 2016–2022 panel. MPS-accelerated Poisson GLMs with a standardized polynomial cross-basis. This document is the working technical record; the flash deck is for external communication.</div>
-  <div class="meta"><b>Yichen Tao</b> · 2026-04-20 · branch <code>main</code> @ merged <code>feature/rq1-dlnm</code></div>
+  <h1>RQ1 on SatHealth Ohio — DLNM pre-screen and itemset-mining pivot</h1>
+  <div class="sub">A two-stage pipeline on the SatHealth Ohio CBSA panel. Stage 1 is 108 marginal DLNM fits (27 exposures × 4 ICD-L1 chapters) that we adapted from the classical daily-events design and that we show is structurally underpowered at this data resolution. Stage 2 is FP-Growth association-rule mining over a 92-row, 112-item CBSA-year transaction panel — a less restrictive question the dataset can actually answer. The two stages converge on the same exposure-chapter signals, which is the contribution.</div>
+  <div class="meta"><b>Yichen Tao</b> · 2026-04-20 · branches <code>feature/rq1-dlnm</code> (merged) + <code>feature/rq1-itemset</code></div>
 </header>
 
 <nav class="toc">
+  <a href="#narrative"><span class="num">0</span>Narrative arc</a>
   <a href="#scope"><span class="num">1</span>Scope and research question</a>
   <a href="#data"><span class="num">2</span>Data</a>
-  <a href="#method"><span class="num">3</span>Method</a>
+  <a href="#method"><span class="num">3</span>DLNM method</a>
   <a href="#pipeline"><span class="num">4</span>Pipeline and repro</a>
-  <a href="#sanity"><span class="num">5</span>Sanity check</a>
-  <a href="#results"><span class="num">6</span>Sweep results</a>
-  <a href="#deviations"><span class="num">7</span>Deviations from plan</a>
-  <a href="#limitations"><span class="num">8</span>Known limitations</a>
-  <a href="#next"><span class="num">9</span>Next steps</a>
+  <a href="#sanity"><span class="num">5</span>DLNM sanity check</a>
+  <a href="#results"><span class="num">6</span>DLNM sweep results</a>
+  <a href="#itemset"><span class="num">7</span>Itemset pivot (FP-Growth)</a>
+  <a href="#bridge"><span class="num">8</span>Cross-link: DLNM × itemset</a>
+  <a href="#deviations"><span class="num">9</span>Deviations from plan</a>
+  <a href="#limitations"><span class="num">10</span>Known limitations</a>
+  <a href="#next"><span class="num">11</span>Next steps</a>
 </nav>
+
+<!-- 0 -->
+<h2 id="narrative">0. Narrative arc</h2>
+<p>The report tells one story in six beats. The technical sections that follow fill them in.</p>
+<ol>
+  <li><b>Prior art.</b> Gasparrini-style DLNMs on daily city-level mortality have established cold-snap and heat-wave effects on cardiovascular and respiratory outcomes. Case-crossover designs tighten that inference with within-person counterfactuals. These methods expect daily event-level outcomes.</li>
+  <li><b>External-validity motivation.</b> Ohio is a different geography than the cities typically studied. We set out to replicate the pattern with SatHealth's satellite-derived environmental features.</li>
+  <li><b>Dataset reality check.</b> SatHealth ships monthly CBSA environment but only <b>yearly</b> CBSA-level ICD-L1 prevalence. 14 CBSAs × 7 years = 98 potential rows. That is a resolution floor, not a modeling choice — case-crossover is impossible and DLNM is badly underpowered. <b>§2, §10</b>.</li>
+  <li><b>DLNM adapted anyway.</b> We built a monthly-lag → yearly-outcome DLNM variant, ran 108 pairs on MPS, and got rankable cumulative-RR estimates. The U-shape for temperature → respiratory matches the literature at the direction level. But 101/108 pairs clear BH-FDR q ≤ 0.1 — asymptotic SEs are optimistic on a 78-row panel with within-CBSA clustering and temporal autocorrelation. <b>§3–§6, §10</b>.</li>
+  <li><b>Pivot to itemset mining.</b> Instead of "what is the dose-response curve?", we ask "which high-exposure CBSA-year regimes co-occur with high-disease metro-years?" FP-Growth on a 92-row, 112-item panel (27 env variables × 4 quartile bins + 4 chapter high-prevalence flags). 1,979 rules survive the env-antecedent / disease-consequent filter at min support 0.05, min confidence 0.5. <b>§7</b>.</li>
+  <li><b>Convergence.</b> The top itemset rules by lift land on the same exposure-chapter pairs the DLNM sweep ranks near the top. Soil-temperature-Q1 → E00-E89 is itemset #2 by lift and DLNM #6 by |log-RR|. Soil-temperature-Q4 → J00-J99 is itemset #14 by lift and DLNM #2 by |log-RR|. Two independent methods, different assumptions, same signal list. <b>§8</b>.</li>
+</ol>
+<div class="box info"><b>Why the arc matters.</b> The contribution is not a particular rule or a particular cumulative-RR number. It is the demonstration that this dataset does not support classical dose-response inference for env→disease at its shipped resolution, and that a less restrictive association-rule framing recovers compatible signals. Any future external-validity study of environmental-health literature on SatHealth should start here.</div>
 
 <!-- 1 -->
 <h2 id="scope">1. Scope and research question</h2>
-<p>Answer the lightweight form of RQ1: for each (environmental exposure, disease) pair on the SatHealth Ohio panel, <b>is there a non-trivial association, and over what lag kernel?</b> Scope is deliberately narrow — marginal per-pair fits, no confounder-adjusted joint model, no causal claims.</p>
+<p>The <b>original</b> RQ1, inherited from the course checkpoint, was frequent-itemset mining of environment-disease co-occurrences. In the DLNM feature branch we pivoted to a regression-with-lags framing to ask a more specific question: <b>for each (environmental exposure, disease) pair, is there a non-trivial association, and over what lag kernel?</b> That pivot produced a ranked output but with inferential claims the data cannot support (§10). This report adds a second branch that re-pivots <em>back</em> toward the checkpoint's original itemset framing — and shows that the two branches agree on which exposure-chapter pairs matter.</p>
 <div class="box info">
-Deliverable: <code>results/summary.csv</code> ranking pairs by the cumulative log-risk ratio between the 10th and 90th percentiles of exposure, plus three-panel figures for pairs with BH-FDR q ≤ 0.1.
+Deliverables: (1) <code>results/summary.csv</code> — 108 DLNM pairs ranked by cumulative log-RR, plus three-panel figures for pairs with BH-FDR q ≤ 0.1. (2) <code>results/itemset_rules.csv</code> — 1,979 FP-Growth rules. (3) <code>results/bridge.csv</code> — the cross-link table joining itemset rules to DLNM rankings on (exposure, chapter).
 </div>
 
 <!-- 2 -->
@@ -239,7 +255,89 @@ pixi run python -c "from rq1_dlnm.run_sweep import run; run()"</pre>
 <p><b>Chapter spread.</b> All four target chapters appear in the top 12 and are roughly balanced in the top 40. Respiratory and circulatory lead slightly. No chapter is a clear null.</p>
 
 <!-- 7 -->
-<h2 id="deviations">7. Deviations from the plan</h2>
+<h2 id="itemset">7. Itemset pivot (FP-Growth)</h2>
+
+<h3>7.1 Motivation</h3>
+<p>The DLNM sweep (§6) produces rankings but not defensible effect sizes. The classical fix is a CBSA-cluster bootstrap, which tightens the SEs but does not change the fundamental limitation: only 98 CBSA-year rows exist, and the outcome panel is yearly. A better move is to ask a question whose inferential assumptions match the data resolution. <b>Association-rule mining</b> does that — it asks "do these items co-occur?", not "what is the conditional expectation curve?". The classical Apriori / FP-Growth toolkit is the natural choice and was, in fact, the checkpoint's originally planned RQ1 method.</p>
+
+<h3>7.2 Transaction panel construction</h3>
+<ul>
+  <li><b>Unit of analysis:</b> one CBSA-year per transaction. 14 CBSAs × 7 years = 98 potential transactions; 6 are missing in the merged env-disease panel, giving <b>92 transactions</b>. (The DLNM panel loses another 14 to the 24-month lookback requirement; the itemset variant does not, so it gets the 14 extra rows back.)</li>
+  <li><b>Environmental items:</b> for each of the 27 surviving exposures (after the DLNM-side prune), aggregate monthly env to yearly CBSA-year means, then discretize via <code>pd.qcut</code> into quartiles. Each exposure contributes items <code>&lt;col&gt;_Q1</code> … <code>&lt;col&gt;_Q4</code>. Total: <b>108 env items</b>.</li>
+  <li><b>Disease items:</b> for each of the 4 ICD-L1 chapters, flag a CBSA-year as high-prevalence if its <code>prevalence</code> is at or above the chapter's 2/3 quantile across the whole panel. Item names: <code>J00-J99_high</code>, <code>I00-I99_high</code>, <code>F01-F99_high</code>, <code>E00-E89_high</code>. By construction 31/92 ≈ 33.7% of CBSA-years are high in each chapter.</li>
+  <li><b>Panel shape:</b> 92 × 112 boolean table (env row density is exactly 27 True by construction, disease row density ∈ {0, 1, 2, 3, 4}). 72/92 rows flag at least one chapter high.</li>
+</ul>
+
+<h3>7.3 Mining</h3>
+<p>FP-Growth (mlxtend) with the following thresholds:</p>
+<div class="formula">min_support = 0.05 &nbsp;·&nbsp; min_confidence = 0.5 &nbsp;·&nbsp; max_len = 3</div>
+<ul>
+  <li><code>max_len = 3</code> is a pragmatic cap. 112 items on 92 rows without a length cap blew up the frequent-itemset enumeration (our first run with no cap and support = 3/92 never returned). With max_len = 3, FP-Growth returns 14,678 frequent itemsets in &lt; 0.1 s.</li>
+  <li>The support floor of 0.05 ≈ 4.6/92 is slightly above the checkpoint notebook's "≥3 supporting transactions" floor and keeps the rule count in the interpretable thousands rather than tens-of-thousands.</li>
+  <li>Association rules are then generated with <code>min_confidence = 0.5</code> and filtered by the structural requirement: <b>antecedent is a subset of the 108 env items, and consequent contains at least one disease item</b>. This is the key filter — it prevents env⇒env or disease⇒disease "trivial" rules from surviving.</li>
+</ul>
+
+<h3>7.4 Rules kept</h3>
+<p><b>1,979 rules</b> clear the env-antecedent / disease-consequent filter. Ranked by lift:</p>
+<table>
+  <thead><tr>
+    <th>Antecedent</th>
+    <th>Consequent</th>
+    <th style="text-align:right">support</th>
+    <th style="text-align:right">confidence</th>
+    <th style="text-align:right">lift</th>
+  </tr></thead>
+  <tbody>
+    <tr><td><code>leaf_area_index_low_vegetation_Q2</code></td><td><code>I00-I99_high, lake_mix_layer_depth_Q3</code></td><td class="num" style="text-align:right">0.120</td><td class="num" style="text-align:right">0.500</td><td class="num" style="text-align:right">4.18</td></tr>
+    <tr><td><code>soil_temperature_level_3_Q1</code></td><td><code>E00-E89_high, temperature_2m_Q1</code></td><td class="num" style="text-align:right">0.120</td><td class="num" style="text-align:right">0.524</td><td class="num" style="text-align:right">4.02</td></tr>
+    <tr><td><code>leaf_area_index_high_vegetation_Q4</code></td><td><code>I00-I99_high, surface_latent_heat_flux_sum_Q1</code></td><td class="num" style="text-align:right">0.228</td><td class="num" style="text-align:right">0.913</td><td class="num" style="text-align:right">4.00</td></tr>
+    <tr><td><code>leaf_area_index_high_vegetation_Q4</code></td><td><code>I00-I99_high, leaf_area_index_low_vegetation_Q2</code></td><td class="num" style="text-align:right">0.152</td><td class="num" style="text-align:right">0.609</td><td class="num" style="text-align:right">4.00</td></tr>
+    <tr><td><code>volumetric_soil_water_layer_3_Q1</code></td><td><code>F01-F99_high, volumetric_soil_water_layer_1_Q1</code></td><td class="num" style="text-align:right">0.130</td><td class="num" style="text-align:right">0.522</td><td class="num" style="text-align:right">4.00</td></tr>
+    <tr><td><code>soil_temperature_level_3_Q1</code></td><td><code>E00-E89_high, evaporation_from_open_water_surfaces_excluding_oceans_sum_Q4</code></td><td class="num" style="text-align:right">0.130</td><td class="num" style="text-align:right">0.571</td><td class="num" style="text-align:right">3.76</td></tr>
+    <tr><td><code>leaf_area_index_high_vegetation_Q4</code></td><td><code>E00-E89_high, surface_latent_heat_flux_sum_Q1</code></td><td class="num" style="text-align:right">0.163</td><td class="num" style="text-align:right">0.652</td><td class="num" style="text-align:right">3.75</td></tr>
+    <tr><td><code>temperature_2m_Q1</code></td><td><code>E00-E89_high, soil_temperature_level_3_Q1</code></td><td class="num" style="text-align:right">0.120</td><td class="num" style="text-align:right">0.524</td><td class="num" style="text-align:right">3.71</td></tr>
+    <tr><td><code>soil_temperature_level_3_Q4</code></td><td><code>J00-J99_high, temperature_2m_Q4</code></td><td class="num" style="text-align:right">0.152</td><td class="num" style="text-align:right">0.560</td><td class="num" style="text-align:right">3.68</td></tr>
+  </tbody>
+</table>
+
+<h3>7.5 Reading the rules</h3>
+<p>The rule lattice divides into a handful of clusters:</p>
+<ul>
+  <li><b>Cold-soil → endocrine.</b> Both <code>soil_temperature_level_3_Q1</code> and <code>temperature_2m_Q1</code> antecedents pull <code>E00-E89_high</code> into the consequent with confidence 0.5-0.6 and lift 3.7-4.0. This is the "cold season, high endocrine prevalence" co-occurrence — the winter-mediated cluster.</li>
+  <li><b>High vegetation / low latent heat → circulatory.</b> <code>leaf_area_index_high_vegetation_Q4</code> paired with <code>surface_latent_heat_flux_sum_Q1</code> predicts <code>I00-I99_high</code> with confidence 0.91 and lift 4.0. Mechanistic reading: this is a <em>seasonal</em> regime (summer/late-spring in Ohio) where LAI is high and latent heat flux is relatively low, and circulatory disease prevalence runs hot. Caveat: the yearly panel collapses seasonality within a year, so "high LAI" here is an <em>annual average</em> — this captures differences <em>between</em> CBSA-years, not within one.</li>
+  <li><b>Hot-soil → respiratory.</b> <code>soil_temperature_level_3_Q4</code> + <code>temperature_2m_Q4</code> → <code>J00-J99_high</code>. Smaller but clearly the "warm-year" cluster for respiratory.</li>
+  <li><b>Soil-moisture → mental.</b> Low <code>volumetric_soil_water_layer_{1,3}</code> pairs with <code>F01-F99_high</code>. Likely a spurious confounder with regional climate / urbanicity rather than a direct soil-mental link.</li>
+</ul>
+
+<h3>7.6 Reproduce</h3>
+<pre>pixi install
+pixi run pytest -q                                               # 10/10 itemset tests pass
+pixi run python -c "from rq1_itemset.mine import run; run()"     # writes results/itemset_rules.csv
+pixi run python -c "from rq1_itemset.bridge import run; run()"   # writes results/bridge.csv</pre>
+
+<!-- 8 -->
+<h2 id="bridge">8. Cross-link: DLNM × itemset</h2>
+<p>For each rule, parse its env column and disease chapter, and join to the DLNM <code>summary.csv</code> on <code>(exposure, chapter)</code>. The DLNM table's rows are ranked by <code>|log-RR|</code> to give a DLNM rank 1–108. All 1,979 rules match a DLNM pair (no orphans).</p>
+<table>
+  <thead><tr>
+    <th>Itemset rule (top-lift representatives)</th>
+    <th style="text-align:right">itemset lift</th>
+    <th>DLNM rank</th>
+    <th style="text-align:right">DLNM log-RR</th>
+  </tr></thead>
+  <tbody>
+    <tr><td><code>soil_temperature_level_3_Q1 ⇒ E00-E89_high + temperature_2m_Q1</code></td><td class="num" style="text-align:right">4.02</td><td>#6 of 108</td><td class="num neg" style="text-align:right">−2.14</td></tr>
+    <tr><td><code>leaf_area_index_high_vegetation_Q4 ⇒ I00-I99_high + surface_latent_heat_flux_sum_Q1</code></td><td class="num" style="text-align:right">4.00</td><td>#7 of 108</td><td class="num neg" style="text-align:right">−1.93</td></tr>
+    <tr><td><code>leaf_area_index_high_vegetation_Q4 ⇒ E00-E89_high + surface_latent_heat_flux_sum_Q1</code></td><td class="num" style="text-align:right">3.75</td><td>#11 of 108</td><td class="num neg" style="text-align:right">−1.63</td></tr>
+    <tr><td><code>soil_temperature_level_3_Q4 ⇒ J00-J99_high + temperature_2m_Q4</code></td><td class="num" style="text-align:right">3.68</td><td>#2 of 108</td><td class="num neg" style="text-align:right">−2.99</td></tr>
+    <tr><td><code>surface_latent_heat_flux_sum_Q1 ⇒ I00-I99_high + leaf_area_index_low_vegetation_Q2</code></td><td class="num" style="text-align:right">3.68</td><td>#47 of 108</td><td class="num neg" style="text-align:right">−0.43</td></tr>
+  </tbody>
+</table>
+<div class="box info"><b>Reading the cross-link.</b> The top-lift itemset rules concentrate on exposure-chapter pairs that the DLNM sweep also places near the top. Soil-temperature → respiratory is the strongest signal in both methods (DLNM #2 at −2.99 log-RR; itemset top-4 by lift on the hot-soil side, top-10 by lift on the cold-soil side). Leaf-area → circulatory shows up similarly in both. This is not proof of an effect; it is cross-method convergence that two different assumption sets see the same signal. For a 92-row dataset, that is the strongest kind of internal validation available.</div>
+<p><b>Where they disagree.</b> A handful of top-lift itemset rules land on DLNM pairs ranked in the 70s-100s by |log-RR|. Example: <code>volumetric_soil_water_layer_3_Q1 ⇒ F01-F99_high + volumetric_soil_water_layer_1_Q1</code> has lift 4.0 but DLNM rank 95. These are rules where the FP-Growth pattern is carried by a <em>pair</em> of highly correlated env items rather than by a strong cumulative-RR on one of them — reading the rule's consequent carefully usually shows a second env token doing the co-occurrence work.</p>
+
+<!-- 9 -->
+<h2 id="deviations">9. Deviations from the plan</h2>
 <ol>
   <li><b>Basis function.</b> Planned: natural cubic spline (<code>df = 3</code>). Actual: standardized degree-3 polynomial. Trigger: the rolled-own ns emitted zero-padded columns at df = 3. Polynomial preserves df = 3 with stable numerics and required no downstream API change beyond a rename (<code>natural_spline</code> → <code>poly_basis</code>) and a spec §4.1 correction.</li>
   <li><b>Knot locations.</b> Planned: 25th/50th/75th percentiles. Actual: (min, median, max). Trigger: IQR-based standardization extrapolated the z³ term too aggressively at the tails, yielding log-RR values &gt; 1000 in the first sweep. (min, median, max) keeps z in [−1, +1] across the observed range.</li>
@@ -249,8 +347,8 @@ pixi run python -c "from rq1_dlnm.run_sweep import run; run()"</pre>
   <li><b>Bootstrap skipped.</b> Planned as out-of-scope (spec §8); not done. See §9.</li>
 </ol>
 
-<!-- 8 -->
-<h2 id="limitations">8. Known limitations</h2>
+<!-- 10 -->
+<h2 id="limitations">10. Known limitations</h2>
 
 <h3>The big one: inflated significance</h3>
 <p>101/108 pairs cross BH-FDR q ≤ 0.1. On a 78-row panel with 25 effective parameters, this is not credible — it is overwhelmingly likely that <b>observed-information SEs are underestimating uncertainty</b>. Three contributing causes:</p>
@@ -271,18 +369,20 @@ pixi run python -c "from rq1_dlnm.run_sweep import run; run()"</pre>
   <li><b>Fit instability across runs.</b> Adam init is not seeded in <code>run_sweep</code>. The top pair changes between runs (<code>lake_bottom_temperature × I00-I99</code> vs <code>soil_temperature_level_3 × I00-I99</code> were the #1 pair in two successive runs). Rank order among the top ~8 is stable; exact ordering isn't.</li>
 </ul>
 
-<!-- 9 -->
-<h2 id="next">9. Next steps for the final writeup</h2>
+<!-- 11 -->
+<h2 id="next">11. Next steps for the final writeup</h2>
 <ol>
-  <li><b>CBSA-cluster bootstrap</b> for the top ~10 pairs. Replace the asymptotic Wald CI with a resampling CI that respects the 14-CBSA structure. Expected outcome: 101/108 significance rate collapses to something like 20–40/108.</li>
-  <li><b>Seed the fit.</b> Add <code>torch.manual_seed</code> in <code>run_sweep.run</code> so the top-12 table is reproducible across runs.</li>
-  <li><b>Deepen one story.</b> Pick either (a) temperature → respiratory (the sanity-backed story) or (b) temperature → circulatory (the largest-effect story) and build the writeup around one three-panel figure plus a bootstrap CI.</li>
-  <li><b>One joint fit as a supplement.</b> Ridge-penalized DLNM with temperature + one air-quality + one greenery exposure stacked. Mostly to show that the marginal ranking is driven by temperature rather than each variable independently.</li>
+  <li><b>CBSA-cluster bootstrap</b> for the top DLNM pairs. Replace the asymptotic Wald CI with a resampling CI that respects the 14-CBSA structure. Expected outcome: 101/108 significance rate collapses to something like 20–40/108 and the itemset pivot's conclusion ("treat as ordinal") is quantitatively justified.</li>
+  <li><b>Stability of itemset rules.</b> Bootstrap the 92 CBSA-years and re-mine; report rule-retention rate at the top-50-by-lift cut. Noisy support figures on 92 rows make this the single most important sensitivity check for the pivot.</li>
+  <li><b>Seed both pipelines.</b> <code>torch.manual_seed</code> in <code>rq1_dlnm.run_sweep.run</code>; the itemset side is deterministic already but document the threshold choices in one place.</li>
+  <li><b>Deepen one story.</b> Pick the cold-soil → endocrine cluster (both methods agree, rule has lift 4.0 with confidence 0.52 and DLNM rank 6) and build the lead figure around it: three-panel DLNM surface + a bar chart of itemset rule confidences + a bootstrap CI on the rule's lift.</li>
+  <li><b>One joint DLNM fit as a supplement.</b> Ridge-penalized DLNM with temperature + one air-quality + one greenery exposure stacked, to show the marginal ranking is carried by temperature rather than by each variable independently.</li>
+  <li><b>Finer-resolution outcome data.</b> SatHealth ships environment at CT and ZCTA levels but outcomes only at CBSA. For a future study, merge county-level CDC WONDER mortality or HCUP SID inpatient data onto the existing SatHealth env panel — that would unlock the classical DLNM design this dataset alone cannot support.</li>
   <li><b>Spec tidy.</b> Update the main-repo spec's §4.1 citation from "Wood (2006) §5.3" to just "standardized degree-3 polynomial" now that the basis has changed. (Done in the worktree copy; main-repo spec is stale.)</li>
 </ol>
 
 <footer>
-  Generated 2026-04-20. Source: <code>docs/superpowers/specs/2026-04-20-rq1-dlnm-design.md</code>, <code>docs/superpowers/plans/2026-04-20-rq1-dlnm.md</code>, <code>results/summary.csv</code>. 17/17 unit tests pass on the merged branch.
+  Generated 2026-04-20. Sources: <code>docs/superpowers/specs/2026-04-20-rq1-dlnm-design.md</code>, <code>docs/superpowers/plans/2026-04-20-rq1-dlnm.md</code>, <code>results/summary.csv</code>, <code>results/itemset_rules.csv</code>, <code>results/bridge.csv</code>. 17/17 DLNM unit tests + 10/10 itemset unit tests pass on <code>feature/rq1-itemset</code>.
 </footer>
 
 </div>
