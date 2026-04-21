@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>RQ1 — Flash Highlights</title>
+<meta name="viewport" content="width=1280,initial-scale=1" />
+<style>
+  :root {
+    --ink: #0f172a;
+    --ink-soft: #334155;
+    --mute: #64748b;
+    --rule: #e2e8f0;
+    --accent: #c2410c;
+    --accent-soft: #fed7aa;
+    --paper: #fdfcf8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #e5e5e0; color: var(--ink);
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif; }
+  .deck { display: flex; flex-direction: column; align-items: center; gap: 32px; padding: 40px 16px 80px; }
+  .slide {
+    width: 1180px; height: 720px;
+    background: var(--paper);
+    border: 1px solid #d4d4d0;
+    box-shadow: 0 1px 0 #fff inset, 0 10px 40px rgba(15,23,42,0.08);
+    padding: 56px 68px;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .slide::after {
+    content: attr(data-num) " / 5";
+    position: absolute; bottom: 22px; right: 28px;
+    font-size: 11px; letter-spacing: 0.12em; color: var(--mute); text-transform: uppercase;
+  }
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin-bottom: 12px;
+  }
+  h1 { font-size: 58px; line-height: 1.05; margin: 0 0 12px; letter-spacing: -0.02em; font-weight: 700; }
+  h2 { font-size: 40px; line-height: 1.15; margin: 0 0 20px; letter-spacing: -0.015em; font-weight: 700; }
+  p { font-size: 20px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 16px; max-width: 900px; }
+  .big { font-size: 26px; color: var(--ink); line-height: 1.4; max-width: 900px; }
+  .rail { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; background: var(--accent); }
+
+  /* Slide 1 */
+  .title-wrap { margin-top: auto; margin-bottom: auto; }
+  .meta { margin-top: 32px; font-size: 14px; color: var(--mute); letter-spacing: 0.04em; }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  /* Slide 2 — the question */
+  .q-card {
+    margin-top: 16px;
+    background: #fff; border: 1px solid var(--rule);
+    padding: 32px 36px; border-left: 6px solid var(--accent);
+    font-size: 26px; line-height: 1.4; color: var(--ink); max-width: 900px;
+  }
+  .q-answer { margin-top: 28px; font-size: 22px; color: var(--ink-soft); max-width: 900px; }
+
+  /* Slide 3 — the picture */
+  .pic-wrap { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; flex: 1; }
+  .pic-card { background: #fff; border: 1px solid var(--rule); padding: 24px; display: flex; flex-direction: column; }
+  .pic-card svg { flex: 1; width: 100%; }
+  .caption { font-size: 14px; color: var(--mute); margin-top: 8px; }
+  .stat-stack { display: flex; flex-direction: column; gap: 22px; justify-content: center; }
+  .stat-row { border-top: 3px solid var(--accent); padding-top: 10px; }
+  .stat-row .k { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+  .stat-row .v { font-size: 44px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; line-height: 1.1; margin-top: 4px; }
+  .stat-row .sub { font-size: 15px; color: var(--ink-soft); margin-top: 4px; }
+
+  /* Slide 4 — findings */
+  .finds { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; }
+  .fcard { background: #fff; border: 1px solid var(--rule); padding: 28px; display: flex; flex-direction: column; gap: 10px; }
+  .fcard .num { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .fcard h3 { font-size: 24px; margin: 0; color: var(--ink); letter-spacing: -0.01em; }
+  .fcard p { font-size: 16px; margin: 0; line-height: 1.5; }
+
+  /* Slide 5 — so what */
+  .sw { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex: 1; }
+  .sw-card { background: #fff; border: 1px solid var(--rule); padding: 28px; }
+  .sw-card h3 { font-size: 22px; margin: 0 0 10px; color: var(--ink); }
+  .sw-card p { font-size: 16px; line-height: 1.5; margin: 0; }
+  .honest { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 14px 18px; font-size: 15px; color: var(--ink); }
+
+  @media print {
+    body { background: #fff; }
+    .deck { gap: 0; padding: 0; }
+    .slide { page-break-after: always; box-shadow: none; border: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- Slide 1: Title -->
+  <section class="slide" data-num="1">
+    <div class="rail"></div>
+    <div class="title-wrap">
+      <div class="eyebrow">CSCE 676 · Final project preview</div>
+      <h1>Weather, air, and disease —<br/>is there a signal?</h1>
+      <p class="big">We built a small model that asks a simple question: can we see environmental exposure show up in Ohio disease rates, and how far back in time does the effect reach?</p>
+      <div class="meta">
+        <b>Yichen Tao</b> &nbsp;·&nbsp; SatHealth Ohio, 2016–2022 &nbsp;·&nbsp; 2026-04-20
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 2: The question -->
+  <section class="slide" data-num="2">
+    <div class="eyebrow">The question</div>
+    <h2>Can monthly weather and air quality predict yearly disease rates?</h2>
+    <div class="q-card">
+      If last winter was unusually cold, does that show up in this year's respiratory disease rate? How many months back does it matter?
+    </div>
+    <p class="q-answer">We tested this across <b>27 environmental variables</b> (temperature, air pollution, vegetation, snow, humidity, …) crossed with <b>4 disease categories</b> (respiratory, circulatory, mental, endocrine) — <b>108 pairs in total</b>.</p>
+    <p style="margin-top: auto;"><b>Answer, in one line:</b> yes, there is signal — and for temperature it reaches roughly a year back.</p>
+  </section>
+
+  <!-- Slide 3: The headline picture -->
+  <section class="slide" data-num="3">
+    <div class="eyebrow">The headline picture</div>
+    <h2>Cold months drive respiratory disease — warm months don't</h2>
+
+    <div class="pic-wrap">
+      <div class="pic-card">
+        <svg viewBox="0 0 560 360" preserveAspectRatio="none">
+          <!-- grid -->
+          <g stroke="#e2e8f0" stroke-width="1">
+            <line x1="70" y1="50" x2="70" y2="300"/>
+            <line x1="70" y1="300" x2="540" y2="300"/>
+            <line x1="70" y1="230" x2="540" y2="230" stroke-dasharray="2,4"/>
+            <line x1="70" y1="160" x2="540" y2="160" stroke-dasharray="2,4"/>
+            <line x1="70" y1="90"  x2="540" y2="90"  stroke-dasharray="2,4"/>
+          </g>
+          <!-- RR=1 baseline -->
+          <line x1="70" y1="280" x2="540" y2="280" stroke="#0f172a" stroke-width="1.2"/>
+          <!-- axis labels -->
+          <g font-family="Inter" font-size="12" fill="#64748b">
+            <text x="66" y="55" text-anchor="end">30×</text>
+            <text x="66" y="95" text-anchor="end">20×</text>
+            <text x="66" y="165" text-anchor="end">10×</text>
+            <text x="66" y="235" text-anchor="end">5×</text>
+            <text x="66" y="283" text-anchor="end">1×</text>
+            <text x="70"  y="322" text-anchor="start">−7 °C (cold winter)</text>
+            <text x="305" y="322" text-anchor="middle">18 °C (typical)</text>
+            <text x="540" y="322" text-anchor="end">26 °C (warm summer)</text>
+            <text x="305" y="345" text-anchor="middle" fill="#334155" font-size="13">Temperature</text>
+          </g>
+          <!-- Y-axis label -->
+          <text x="20" y="175" font-family="Inter" font-size="13" fill="#334155" transform="rotate(-90, 20, 175)">Relative risk of respiratory disease</text>
+          <!-- shaded ribbon -->
+          <path d="M 80,58 Q 130,90 180,165 Q 240,245 300,268 Q 360,274 420,278 Q 480,279 535,279
+                   L 535,286 Q 480,286 420,284 Q 360,282 300,277 Q 240,258 180,180 Q 130,105 80,70 Z"
+                fill="#fed7aa" opacity="0.55"/>
+          <!-- curve -->
+          <path d="M 80,64
+                   Q 130,97 180,172
+                   Q 240,250 300,272
+                   Q 360,275 420,278
+                   Q 480,279 535,279"
+                fill="none" stroke="#c2410c" stroke-width="3.5" stroke-linecap="round"/>
+          <!-- markers -->
+          <circle cx="85" cy="66" r="5" fill="#c2410c"/>
+          <text x="95" y="58" font-family="Inter" font-size="13" fill="#c2410c" font-weight="700">≈ 28× higher</text>
+          <circle cx="300" cy="272" r="5" fill="#c2410c"/>
+          <text x="310" y="267" font-family="Inter" font-size="12" fill="#c2410c" font-weight="600">1.2× (baseline)</text>
+          <circle cx="530" cy="279" r="5" fill="#c2410c"/>
+          <text x="520" y="272" font-family="Inter" font-size="12" fill="#c2410c" font-weight="600" text-anchor="end">1.0×</text>
+        </svg>
+        <div class="caption">Respiratory-disease risk vs. temperature. Cold winters push risk sharply up; hot summers don't. Ribbon is the 95 % asymptotic band.</div>
+      </div>
+
+      <div class="stat-stack">
+        <div class="stat-row">
+          <div class="k">Cold-winter risk</div>
+          <div class="v">28×</div>
+          <div class="sub">vs. a typical-temperature reference</div>
+        </div>
+        <div class="stat-row">
+          <div class="k">Hot-summer risk</div>
+          <div class="v">1×</div>
+          <div class="sub">essentially flat on this dataset</div>
+        </div>
+        <div class="stat-row">
+          <div class="k">Shape</div>
+          <div class="v">U-shaped</div>
+          <div class="sub">cold tail carries nearly all the signal</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 4: Three findings -->
+  <section class="slide" data-num="4">
+    <div class="eyebrow">Three findings</div>
+    <h2>What the full sweep told us</h2>
+    <div class="finds">
+      <div class="fcard">
+        <div class="num">01</div>
+        <h3>Temperature dominates.</h3>
+        <p>Across 108 pairs, the variables most linked to disease are all temperature-related — air temperature, soil temperature, and lake temperature. Air pollution matters too, but less than weather.</p>
+      </div>
+      <div class="fcard">
+        <div class="num">02</div>
+        <h3>The lag reaches about a year.</h3>
+        <p>Disease rates don't only respond to last month's weather. Effects spread over roughly the past twelve months, with the strongest weight in the winter months of the outcome year.</p>
+      </div>
+      <div class="fcard">
+        <div class="num">03</div>
+        <h3>All four disease categories respond.</h3>
+        <p>Respiratory, circulatory, mental, and endocrine disease each have at least one environmental variable with a clear signal — not just the usual suspects like respiratory.</p>
+      </div>
+      <div class="fcard" style="background: var(--accent-soft); border-color: var(--accent);">
+        <div class="num">What's next</div>
+        <h3>Deepen one story, not all of them.</h3>
+        <p>For the final project we'll pick <b>temperature → circulatory disease</b> as the lead story, tighten the uncertainty estimates with bootstrap, and build the narrative around the lag kernel.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5: So what / honest note -->
+  <section class="slide" data-num="5">
+    <div class="eyebrow">So what</div>
+    <h2>Why this matters, and what we're not claiming</h2>
+    <div class="sw">
+      <div class="sw-card">
+        <h3>Why this matters</h3>
+        <p>Most environmental-health studies use daily hospital admissions. We only have <b>yearly</b> disease data but <b>monthly</b> environmental data for just 14 Ohio metros. The fact that a sensible signal still emerges — cold → respiratory, temperature → circulatory — says the approach is feasible even with this coarse resolution. That's a useful result for future work on similar county-level datasets.</p>
+      </div>
+      <div class="sw-card">
+        <h3>What this is not</h3>
+        <p>This is <b>not causal</b>. We found correlations, not explanations. Cold weather doesn't directly cause disease the way a virus does — it interacts with behavior, housing, air circulation, and seasonal viruses. Our model tells you <b>when</b> and <b>how much</b>, not <b>why</b>.</p>
+      </div>
+      <div class="honest" style="grid-column: 1 / -1;">
+        <b>Honest caveat for a technical eye.</b> With only 78 data rows per disease, our model is confident about direction but much less confident about precise magnitudes. Treat the rankings as <b>which variables stand out</b>, not as <b>guaranteed effect sizes</b>. Tighter uncertainty quantification is the first thing on our follow-up list.
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

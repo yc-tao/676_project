@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>RQ1 DLNM — Technical Report</title>
+<meta name="viewport" content="width=900,initial-scale=1" />
+<style>
+  :root {
+    --ink: #0f172a; --ink-soft: #334155; --mute: #64748b;
+    --rule: #e2e8f0; --accent: #c2410c; --accent-soft: #fed7aa;
+    --cool: #1e3a8a; --paper: #fdfcf8; --code-bg: #f5f1ea;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "ss01", "cv11"; }
+  .page { max-width: 820px; margin: 0 auto; padding: 64px 48px 96px; }
+  header { border-bottom: 1.5px solid var(--ink); padding-bottom: 20px; margin-bottom: 32px; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+  h1 { font-size: 34px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.02em; font-weight: 700; }
+  .sub { font-size: 16px; color: var(--ink-soft); line-height: 1.5; max-width: 680px; }
+  .meta { font-size: 12px; color: var(--mute); letter-spacing: 0.04em; margin-top: 16px; }
+  .meta b { color: var(--ink); font-weight: 600; letter-spacing: 0.02em; }
+
+  h2 { font-size: 22px; margin: 40px 0 12px; letter-spacing: -0.01em;
+       border-left: 4px solid var(--accent); padding-left: 12px; }
+  h3 { font-size: 16px; margin: 22px 0 8px; letter-spacing: 0.01em; font-weight: 700; color: var(--ink); }
+  p, li { font-size: 15px; line-height: 1.65; color: var(--ink-soft); }
+  p { margin: 0 0 12px; }
+  code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 2px; color: var(--ink); }
+  pre { background: var(--code-bg); border: 1px solid var(--rule); padding: 14px 16px;
+        border-radius: 3px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; color: var(--ink);
+        margin: 10px 0 16px; }
+  .box { background: #fff; border: 1px solid var(--rule); padding: 16px 20px; border-radius: 3px; margin: 10px 0 16px; }
+  .box.warn { background: var(--accent-soft); border-left: 4px solid var(--accent); }
+  .box.info { border-left: 4px solid var(--cool); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0 20px; }
+  thead th { text-align: left; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--mute); font-weight: 600; border-bottom: 1.5px solid var(--ink);
+    padding: 8px 10px 6px; }
+  tbody td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; color: var(--ink); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; }
+  td.pos { color: #b91c1c; }
+  td.neg { color: #1e40af; }
+
+  ul, ol { padding-left: 22px; margin: 8px 0 16px; }
+  li { margin-bottom: 5px; }
+
+  .formula {
+    font-family: "Georgia", "Times New Roman", serif;
+    font-style: italic; font-size: 15px;
+    background: #fff; border: 1px solid var(--rule); padding: 12px 18px;
+    margin: 8px 0 16px; border-radius: 3px;
+  }
+
+  .toc { background: #fff; border: 1px solid var(--rule); padding: 14px 20px; border-radius: 3px;
+         font-size: 13.5px; columns: 2; column-gap: 28px; margin-bottom: 32px; }
+  .toc a { color: var(--ink-soft); text-decoration: none; display: block; padding: 3px 0; }
+  .toc a:hover { color: var(--accent); }
+  .toc .num { color: var(--mute); margin-right: 8px; font-variant-numeric: tabular-nums; }
+
+  figure { margin: 10px 0 20px; }
+  figcaption { font-size: 13px; color: var(--mute); margin-top: 6px; }
+
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-size: 12px; color: var(--mute); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="eyebrow">CSCE 676 Final Project · Technical Report</div>
+  <h1>RQ1 DLNM proof-of-concept on SatHealth Ohio</h1>
+  <div class="sub">Marginal distributed-lag non-linear models for 108 (environmental exposure × ICD L1 chapter) pairs on a 14-CBSA, 2016–2022 panel. MPS-accelerated Poisson GLMs with a standardized polynomial cross-basis. This document is the working technical record; the flash deck is for external communication.</div>
+  <div class="meta"><b>Yichen Tao</b> · 2026-04-20 · branch <code>main</code> @ merged <code>feature/rq1-dlnm</code></div>
+</header>
+
+<nav class="toc">
+  <a href="#scope"><span class="num">1</span>Scope and research question</a>
+  <a href="#data"><span class="num">2</span>Data</a>
+  <a href="#method"><span class="num">3</span>Method</a>
+  <a href="#pipeline"><span class="num">4</span>Pipeline and repro</a>
+  <a href="#sanity"><span class="num">5</span>Sanity check</a>
+  <a href="#results"><span class="num">6</span>Sweep results</a>
+  <a href="#deviations"><span class="num">7</span>Deviations from plan</a>
+  <a href="#limitations"><span class="num">8</span>Known limitations</a>
+  <a href="#next"><span class="num">9</span>Next steps</a>
+</nav>
+
+<!-- 1 -->
+<h2 id="scope">1. Scope and research question</h2>
+<p>Answer the lightweight form of RQ1: for each (environmental exposure, disease) pair on the SatHealth Ohio panel, <b>is there a non-trivial association, and over what lag kernel?</b> Scope is deliberately narrow — marginal per-pair fits, no confounder-adjusted joint model, no causal claims.</p>
+<div class="box info">
+Deliverable: <code>results/summary.csv</code> ranking pairs by the cumulative log-risk ratio between the 10th and 90th percentiles of exposure, plus three-panel figures for pairs with BH-FDR q ≤ 0.1.
+</div>
+
+<!-- 2 -->
+<h2 id="data">2. Data</h2>
+
+<h3>Inputs</h3>
+<ul>
+  <li><b>Environmental panels</b> (monthly, CBSA-level): <code>airquality.csv</code>, <code>climate.csv</code>, <code>greenery.csv</code>, inner-joined on <code>(CBSAFP, year, month)</code>. Landcover is static and excluded from the lag model.</li>
+  <li><b>Outcomes</b> (yearly, CBSA-level): <code>icdl1_prev_ohio.csv</code> columns <code>CBSAFP, year, code, count, count_patient</code>. We model <code>count</code> as Poisson with <code>log(count_patient)</code> offset, so the estimand is a rate.</li>
+</ul>
+
+<h3>Panel geometry</h3>
+<ul>
+  <li>14 CBSAs intersect the disease file (full env file has 47 CBSAs — we restrict to the disease set).</li>
+  <li>7 outcome years (2016–2022) × 14 CBSAs = 98 rows before lookback constraints.</li>
+  <li>With a 23-month lookback, year 2016 is dropped → <b>78 rows per chapter</b>.</li>
+  <li>4 outcome chapters tested: <code>J00-J99</code> (respiratory), <code>I00-I99</code> (circulatory), <code>F01-F99</code> (mental), <code>E00-E89</code> (endocrine).</li>
+</ul>
+
+<h3>Exposure prune (deterministic)</h3>
+<ol>
+  <li>Drop columns with &gt; 50 % missing in the 14-CBSA × 84-month window.</li>
+  <li>Drop near-zero-variance columns (<code>std/|mean| &lt; 0.01</code> or <code>std = 0</code>).</li>
+  <li>Collapse |r| ≥ 0.98 clusters to one representative (highest-variance column, with a 1e-3 relative tolerance for ties to get column-order-stable output).</li>
+</ol>
+<p>Result: 27 exposures survive out of ~35 raw columns — primarily temperature-family, soil-water, wind, radiation, snow, NDVI/LAI, AOD, NO2, ozone.</p>
+
+<!-- 3 -->
+<h2 id="method">3. Method</h2>
+
+<h3>3.1 Lag matrix</h3>
+<p>For outcome row <code>(CBSAFP=c, year=y)</code> and lag <code>k ∈ {0, …, 23}</code>, the lag-k value is the exposure at month <code>12 − (k mod 12)</code> of year <code>y − ⌊k/12⌋</code>. Concretely: lag 0 = December of <code>y</code>, lag 11 = January of <code>y</code>, lag 12 = December of <code>y − 1</code>, lag 23 = January of <code>y − 1</code>. Tested explicitly in <code>tests/rq1_dlnm/test_data.py</code>.</p>
+
+<h3>3.2 Cross-basis (polynomial, not a natural spline)</h3>
+<p>The design spec originally called for a natural cubic spline (Wood 2006 §5.3). During execution we found the rolled-own ns emitted zero-padded columns for df = 3 (only a linear + one wiggle survive). We replaced it with a <b>standardized degree-3 polynomial</b>:</p>
+<div class="formula">z = (x − median) / ((max − min)/2),&nbsp;&nbsp;basis = [z, z², z³]</div>
+<p>Knots are only used to compute (center, scale); they are not classical spline knots. In <code>run_sweep.py</code> we set <code>v_knots = (min, median, max)</code> of the observed lag matrix, and <code>lag_knots = (6, 12, 18)</code> over the 0–23 lag range (for a polynomial basis these translate to center = 12, half-range = 6, i.e. z ∈ [−2, +1.83]).</p>
+<p>Cross-basis: <code>X[i, v·df_lag + l] = Σₖ B_var(L[i, k])[v] · B_lag(k)[l]</code>, contracting over lags. Shape: <code>(n_rows, 3 × 3) = (78, 9)</code>.</p>
+
+<h3>3.3 Poisson GLM</h3>
+<div class="formula">log μᵢ = α + xᵢᶜᵇ β + γ<sub>CBSA(i)</sub> + δ · yearᵢ + θ · miss_fracᵢ + log nᵢ</div>
+<ul>
+  <li><code>β ∈ ℝ⁹</code>: cross-basis coefficients, ridge-penalized (λ = 10⁻²).</li>
+  <li><code>γ</code>: 14 CBSA fixed effects, <code>γ₀ = 0</code> pinned for identifiability. Unpenalized.</li>
+  <li><code>δ</code>: linear year trend (year is centered). Unpenalized.</li>
+  <li><code>θ</code>: imputation-fraction covariate (per-row fraction of missing values in the lag vector). Unpenalized.</li>
+  <li><code>α</code>: intercept. Unpenalized.</li>
+</ul>
+
+<h3>3.4 Fit</h3>
+<p>PyTorch, Adam, lr = 5 × 10⁻², 2000 steps (bumped from the plan's 500 — see §8), patience = 20 at tol 10⁻⁶. Device: Apple MPS when available, CPU fallback. Full sweep wall time: <b>~4 minutes</b> on M-series Apple Silicon.</p>
+
+<h3>3.5 Inference</h3>
+<p>Observed-information Hessian on β at the Adam optimum: <code>H = Xᵀ diag(μ̂) X + 2λI</code>. CIs on log-RR via delta method:</p>
+<div class="formula">c = B(v<sub>high</sub>) − B(v<sub>low</sub>),&nbsp;&nbsp;log RR̂ = cᵀ β̂,&nbsp;&nbsp;SE = √(cᵀ H⁻¹ c)</div>
+<p>Contrast: cumulative log-RR at the 90th vs 10th percentile of the observed lag matrix, relative to the median. Wald z → two-sided p-value. BH-FDR across all 108 pairs, accept at q ≤ 0.1.</p>
+
+<!-- 4 -->
+<h2 id="pipeline">4. Pipeline and repro</h2>
+<p>All code under <code>src/rq1_dlnm/</code>. One module per responsibility:</p>
+<table>
+  <thead><tr><th>Module</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>data.py</code></td><td>CSV loaders, lag-matrix builder, missingness imputation, exposure prune.</td></tr>
+    <tr><td><code>basis.py</code></td><td><code>poly_basis</code> (standardized polynomial) and <code>cross_basis</code>.</td></tr>
+    <tr><td><code>model.py</code></td><td><code>PoissonDLNM</code> module, <code>fit</code>, <code>observed_information</code>.</td></tr>
+    <tr><td><code>predict.py</code></td><td>Cumulative RR contrast, per-lag RR, exposure-lag surface.</td></tr>
+    <tr><td><code>plot.py</code></td><td>Three-panel PNG: contour surface + cumulative RR + lag profile.</td></tr>
+    <tr><td><code>run_sweep.py</code></td><td>Orchestrator — loops pairs, writes <code>results/summary.csv</code> and figures.</td></tr>
+  </tbody>
+</table>
+<p>Reproduce:</p>
+<pre>pixi install
+pixi run pytest -q            # 17/17 tests pass
+pixi run python -c "from rq1_dlnm.run_sweep import run; run()"</pre>
+
+<!-- 5 -->
+<h2 id="sanity">5. Sanity check — temperature → J00-J99</h2>
+<p>Required by the design spec's §7: if the pipeline is correct, temperature → respiratory prevalence should recover a U-shaped exposure-response.</p>
+<table>
+  <thead><tr><th>Temperature</th><th>Cumulative RR vs. median</th></tr></thead>
+  <tbody>
+    <tr><td>−6.6 °C (10th percentile / cold tail)</td><td class="num">27.99</td></tr>
+    <tr><td>18 °C (median / baseline)</td><td class="num">1.18</td></tr>
+    <tr><td>26.4 °C (90th percentile / warm tail)</td><td class="num">1.02</td></tr>
+    <tr><td><b>Tails mean</b></td><td class="num"><b>14.50</b></td></tr>
+  </tbody>
+</table>
+<p>Shape: <b>U, cold-tail dominated</b>. Warm tail is essentially flat — consistent with the Ohio climate band, where most heat-mortality signal lives in circulatory disease, not acute respiratory. Direction confirms the pipeline. Magnitude (28× at the cold tail) is implausibly large; see §8 for why.</p>
+
+<!-- 6 -->
+<h2 id="results">6. Sweep results</h2>
+
+<h3>Run headline</h3>
+<ul>
+  <li>108 pairs fit (27 exposures × 4 chapters).</li>
+  <li><b>65/108 converged</b> under the patience criterion at 2000 steps.</li>
+  <li>0 NaN rows.</li>
+  <li><b>101/108 clear q ≤ 0.1</b>, 99/108 clear q ≤ 0.05. See §8 — this is SE underestimation, not 101 true effects.</li>
+</ul>
+
+<h3>Top pairs by |cumulative log-RR|</h3>
+<table>
+  <thead><tr>
+    <th>Exposure</th><th>Chapter</th>
+    <th style="text-align:right">log-RR</th>
+    <th style="text-align:right">SE</th>
+    <th style="text-align:right">q</th>
+    <th>Converged</th>
+  </tr></thead>
+  <tbody>
+    <tr><td>soil_temperature_level_3</td><td>I00-I99</td><td class="num neg" style="text-align:right">−3.34</td><td class="num" style="text-align:right">0.132</td><td class="num" style="text-align:right">0.000</td><td>yes</td></tr>
+    <tr><td>soil_temperature_level_3</td><td>J00-J99</td><td class="num neg" style="text-align:right">−2.99</td><td class="num" style="text-align:right">0.101</td><td class="num" style="text-align:right">0.000</td><td>no</td></tr>
+    <tr><td>soil_temperature_level_3</td><td>F01-F99</td><td class="num neg" style="text-align:right">−2.89</td><td class="num" style="text-align:right">0.117</td><td class="num" style="text-align:right">0.000</td><td>no</td></tr>
+    <tr><td>surface_solar_radiation_downwards_sum</td><td>J00-J99</td><td class="num pos" style="text-align:right">+2.55</td><td class="num" style="text-align:right">0.075</td><td class="num" style="text-align:right">0.000</td><td>yes</td></tr>
+    <tr><td>lake_bottom_temperature</td><td>I00-I99</td><td class="num pos" style="text-align:right">+2.33</td><td class="num" style="text-align:right">0.086</td><td class="num" style="text-align:right">0.000</td><td>yes</td></tr>
+    <tr><td>soil_temperature_level_3</td><td>E00-E89</td><td class="num neg" style="text-align:right">−2.14</td><td class="num" style="text-align:right">0.109</td><td class="num" style="text-align:right">0.000</td><td>yes</td></tr>
+    <tr><td>leaf_area_index_high_vegetation</td><td>I00-I99</td><td class="num neg" style="text-align:right">−1.93</td><td class="num" style="text-align:right">1.084</td><td class="num" style="text-align:right">0.080</td><td>yes</td></tr>
+    <tr><td>snow_albedo</td><td>I00-I99</td><td class="num pos" style="text-align:right">+1.87</td><td class="num" style="text-align:right">0.027</td><td class="num" style="text-align:right">0.000</td><td>no</td></tr>
+    <tr><td>snow_density</td><td>I00-I99</td><td class="num neg" style="text-align:right">−1.83</td><td class="num" style="text-align:right">0.056</td><td class="num" style="text-align:right">0.000</td><td>yes</td></tr>
+    <tr><td>temperature_2m</td><td>J00-J99</td><td class="num neg" style="text-align:right">−1.70</td><td class="num" style="text-align:right">0.121</td><td class="num" style="text-align:right">0.000</td><td>no</td></tr>
+    <tr><td>leaf_area_index_high_vegetation</td><td>E00-E89</td><td class="num neg" style="text-align:right">−1.63</td><td class="num" style="text-align:right">0.747</td><td class="num" style="text-align:right">0.032</td><td>yes</td></tr>
+    <tr><td>surface_thermal_radiation_downwards_sum</td><td>F01-F99</td><td class="num pos" style="text-align:right">+1.56</td><td class="num" style="text-align:right">0.062</td><td class="num" style="text-align:right">0.000</td><td>yes</td></tr>
+  </tbody>
+</table>
+
+<h3>Top-40 chapter breakdown</h3>
+<table>
+  <thead><tr><th>Chapter</th><th>Pairs in top 40</th></tr></thead>
+  <tbody>
+    <tr><td>J00-J99 respiratory</td><td class="num">13</td></tr>
+    <tr><td>I00-I99 circulatory</td><td class="num">11</td></tr>
+    <tr><td>F01-F99 mental</td><td class="num">8</td></tr>
+    <tr><td>E00-E89 endocrine</td><td class="num">8</td></tr>
+  </tbody>
+</table>
+
+<h3>Reading the top-12 table</h3>
+<p><b>Sign caveat.</b> The log-RR is from 10th→90th percentile of the observed lag matrix. For soil_temperature_level_3 the "10th percentile" is near the winter floor and the "90th percentile" is the summer ceiling; a <b>negative</b> log-RR here means "going from cold soil to warm soil lowers disease rate" — or equivalently "cold soil is associated with higher rate." That matches the temperature sanity check (cold → elevated risk).</p>
+<p><b>Temperature family concentration.</b> Six of the top twelve pairs involve some variant of temperature (soil, lake, 2m air). Remaining: two surface-radiation-family (tightly correlated with temperature), two snow (ditto), two vegetation. This is not 12 independent findings — it's one temperature-seasonality story seen through multiple correlated variables.</p>
+<p><b>Chapter spread.</b> All four target chapters appear in the top 12 and are roughly balanced in the top 40. Respiratory and circulatory lead slightly. No chapter is a clear null.</p>
+
+<!-- 7 -->
+<h2 id="deviations">7. Deviations from the plan</h2>
+<ol>
+  <li><b>Basis function.</b> Planned: natural cubic spline (<code>df = 3</code>). Actual: standardized degree-3 polynomial. Trigger: the rolled-own ns emitted zero-padded columns at df = 3. Polynomial preserves df = 3 with stable numerics and required no downstream API change beyond a rename (<code>natural_spline</code> → <code>poly_basis</code>) and a spec §4.1 correction.</li>
+  <li><b>Knot locations.</b> Planned: 25th/50th/75th percentiles. Actual: (min, median, max). Trigger: IQR-based standardization extrapolated the z³ term too aggressively at the tails, yielding log-RR values &gt; 1000 in the first sweep. (min, median, max) keeps z in [−1, +1] across the observed range.</li>
+  <li><b>Adam steps.</b> Planned: 500. Actual: 2000. Trigger: at 500 steps most fits hit the patience criterion with pathological β (frozen at step-size multiples). At 2000 steps 65/108 converge cleanly.</li>
+  <li><b>Device handling.</b> Planned and implemented <code>observed_information</code> reads device from <code>X_cb</code>. The first implementation required a caller-side <code>m.to("cpu")</code>. Post-review, <code>observed_information</code> now reads device from <code>next(model.parameters())</code> and is caller-safe.</li>
+  <li><b>All-NaN rows.</b> <code>impute_and_flag</code> now explicitly handles rows whose entire 24-lag window is NaN (fills 0.0, marks <code>miss_frac = 1.0</code>) instead of emitting a <code>RuntimeWarning</code>. These rows contribute no exposure signal to the fit but carry the miss-fraction covariate.</li>
+  <li><b>Bootstrap skipped.</b> Planned as out-of-scope (spec §8); not done. See §9.</li>
+</ol>
+
+<!-- 8 -->
+<h2 id="limitations">8. Known limitations</h2>
+
+<h3>The big one: inflated significance</h3>
+<p>101/108 pairs cross BH-FDR q ≤ 0.1. On a 78-row panel with 25 effective parameters, this is not credible — it is overwhelmingly likely that <b>observed-information SEs are underestimating uncertainty</b>. Three contributing causes:</p>
+<ol>
+  <li><b>Adam ≠ MLE.</b> Observed-info is only a valid asymptotic covariance at the true MLE. Adam at 2000 steps is close but not exact; 43/108 fits didn't even hit the patience criterion.</li>
+  <li><b>Clustering ignored.</b> Each of the 14 CBSAs contributes 6 correlated observations. Fixed effects remove the level, but residual within-CBSA correlation inflates the effective sample size under the independent-observation variance.</li>
+  <li><b>Temporal autocorrelation.</b> Year t and year t+1 share 11 months of exposure via the lag matrix. Treating them as independent inflates n by another factor ~2.</li>
+</ol>
+<div class="box warn"><b>Practical consequence.</b> Treat the sweep output as an <b>ordinal ranking</b> — which exposures and which chapters stand out. Do not treat the reported p-values or CI widths as calibrated. The direction of effect and the rank order are usable; the point-estimate magnitudes and nominal significance are not.</div>
+
+<h3>Smaller limitations</h3>
+<ul>
+  <li><b>14 CBSAs.</b> Too few for a spatial random effect. Fixed effects are the ceiling of what the panel can support.</li>
+  <li><b>Yearly outcomes.</b> The DLNM literature normally runs on daily outcomes. Our sub-annual signal has to be extracted through the cumulative-RR contrast alone; we can't directly see within-year dynamics on the outcome side.</li>
+  <li><b>No SDI.</b> CBSA-level SDI is not in the SatHealth release. Any socioeconomic confounding is absorbed into the CBSA fixed effects, which is both a strength (we're not pretending to adjust) and a limitation (we can't decompose climate vs. poverty).</li>
+  <li><b>Correlated exposures.</b> The prune at |r| ≥ 0.98 leaves multiple temperature-family variables that correlate at ~0.9. The sweep treats them as independent tests; a joint fit would be more honest.</li>
+  <li><b>Marginal, not joint.</b> Each fit has one exposure. Omitted-variable bias is unbounded in principle. For a PoC ranking this is acceptable; for inference on any specific pair it is not.</li>
+  <li><b>Fit instability across runs.</b> Adam init is not seeded in <code>run_sweep</code>. The top pair changes between runs (<code>lake_bottom_temperature × I00-I99</code> vs <code>soil_temperature_level_3 × I00-I99</code> were the #1 pair in two successive runs). Rank order among the top ~8 is stable; exact ordering isn't.</li>
+</ul>
+
+<!-- 9 -->
+<h2 id="next">9. Next steps for the final writeup</h2>
+<ol>
+  <li><b>CBSA-cluster bootstrap</b> for the top ~10 pairs. Replace the asymptotic Wald CI with a resampling CI that respects the 14-CBSA structure. Expected outcome: 101/108 significance rate collapses to something like 20–40/108.</li>
+  <li><b>Seed the fit.</b> Add <code>torch.manual_seed</code> in <code>run_sweep.run</code> so the top-12 table is reproducible across runs.</li>
+  <li><b>Deepen one story.</b> Pick either (a) temperature → respiratory (the sanity-backed story) or (b) temperature → circulatory (the largest-effect story) and build the writeup around one three-panel figure plus a bootstrap CI.</li>
+  <li><b>One joint fit as a supplement.</b> Ridge-penalized DLNM with temperature + one air-quality + one greenery exposure stacked. Mostly to show that the marginal ranking is driven by temperature rather than each variable independently.</li>
+  <li><b>Spec tidy.</b> Update the main-repo spec's §4.1 citation from "Wood (2006) §5.3" to just "standardized degree-3 polynomial" now that the basis has changed. (Done in the worktree copy; main-repo spec is stale.)</li>
+</ol>
+
+<footer>
+  Generated 2026-04-20. Source: <code>docs/superpowers/specs/2026-04-20-rq1-dlnm-design.md</code>, <code>docs/superpowers/plans/2026-04-20-rq1-dlnm.md</code>, <code>results/summary.csv</code>. 17/17 unit tests pass on the merged branch.
+</footer>
+
+</div>
+</body>
+</html>
