@@ -47,8 +47,7 @@ pipeline (load → DLNM sweep → FP-Growth → bridge), reproduces the
 headline figures, and shows the cross-link between the two methods on
 the same panel.
 
-The graded checkpoint notebook is `yichen_630007741_ckpt2.ipynb`. A
-focused single-pair walkthrough lives in `rq1_dlnm_demo.ipynb`.
+A focused single-pair walkthrough lives in `rq1_dlnm_demo.ipynb`.
 
 ## Results summary
 
@@ -113,6 +112,27 @@ due to its size (~320 MB). To set up the project:
 ├── eda.py
 └── ...
 ```
+
+## Environment
+
+This project uses [pixi](https://pixi.sh) for environment management.
+`pixi install` reads `pixi.toml` / `pixi.lock` and gives you the exact
+locked environment we develop against.
+
+For pip users we also ship a `requirements.txt` pinned to the same
+versions. Key packages:
+
+| Package | Version |
+|---|---|
+| `python` | 3.14 |
+| `torch` | 2.10.0 |
+| `numpy` | 2.4.3 |
+| `pandas` | 3.0.2 |
+| `mlxtend` | 0.24.0 (FP-Growth) |
+| `statsmodels` | 0.14.6 (BH-FDR) |
+
+Full list in `requirements.txt`. `pixi.toml` / `pixi.lock` remain the
+source of truth for reproducibility.
 
 ## Reproducing RQ1
 

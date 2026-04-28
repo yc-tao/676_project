@@ -1,0 +1,29 @@
+# Pinned to match the pixi-managed environment used for ckpt2.
+# Versions reflect `pixi list` output on osx-arm64 / Python 3.14.
+# pixi remains the source of truth — see pixi.toml / pixi.lock.
+
+# Core scientific stack
+numpy==2.4.3
+pandas==3.0.2
+scipy==1.17.1
+matplotlib==3.10.8
+
+# RQ1 DLNM
+torch==2.10.0
+statsmodels==0.14.6
+
+# RQ1 itemset pivot
+mlxtend==0.24.0
+
+# Notebook + exploratory analysis
+seaborn==0.13.2
+scikit-learn==1.8.0
+hdbscan==0.8.42
+jupyter==1.1.1
+nbformat==5.10.4
+nbconvert==7.17.1
+ipykernel==7.2.0
+ipython==9.12.0
+
+# Dev
+pytest==9.0.3
