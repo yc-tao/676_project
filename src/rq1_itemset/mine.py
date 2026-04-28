@@ -5,9 +5,8 @@ rules, and keeps only rules whose antecedent is purely environmental
 (``<col>_Q{1..4}`` items) and whose consequent contains at least one
 disease item (``<chapter>_high``).
 
-Thresholds are chosen for a thin 92-row panel: min support 3/92 ≈ 0.033,
-min confidence 0.5. These are the lowest values that still make the
-"support floor ≥ 3 transactions" claim from the checkpoint notebook.
+Thresholds are chosen for a thin 92-row panel: min support 0.05
+(≥ 5 transactions out of 92), min confidence 0.5.
 """
 from __future__ import annotations
 

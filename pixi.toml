@@ -17,6 +17,9 @@ nbformat = "*"
 nbconvert = "*"
 ipython = "*"
 mlxtend = "*"
+hdbscan = ">=0.8.42,<0.9"
+seaborn = ">=0.13.2,<0.14"
+scikit-learn = ">=1.8.0,<2"
 
 [feature.dev.dependencies]
 pytest = "*"

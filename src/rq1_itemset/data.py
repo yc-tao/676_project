@@ -66,10 +66,9 @@ def binarize_outcomes(
     above the `quantile`-th quantile of prevalence within that chapter across
     the whole panel. Default 2/3 (top tertile) gives a roughly 1-in-3 prior.
     """
-    df = outcomes.copy()
-    df = df[df["code"].isin(list(chapters))]
+    df = outcomes[outcomes["code"].isin(list(chapters))].copy()
     thresholds = df.groupby("code")["prevalence"].quantile(quantile)
-    df["high"] = df.apply(lambda r: r["prevalence"] >= thresholds[r["code"]], axis=1)
+    df["high"] = df["prevalence"] >= df["code"].map(thresholds)
     wide = df.pivot_table(
         index=KEY, columns="code", values="high", aggfunc="first"
     ).fillna(False)
