@@ -134,6 +134,55 @@ versions. Key packages:
 Full list in `requirements.txt`. `pixi.toml` / `pixi.lock` remain the
 source of truth for reproducibility.
 
+### Quick start (pixi, recommended)
+
+```bash
+# Install pixi once (Mac/Linux):
+curl -fsSL https://pixi.sh/install.sh | bash
+
+# Then from the repo root:
+pixi install              # provisions the locked environment
+pixi run pytest -q        # 26 tests, ~10s on Apple Silicon
+pixi run jupyter lab      # open main_notebook.ipynb
+```
+
+`pixi run <cmd>` runs the command inside the project environment, so
+you never need to activate it manually. To run the DLNM sweep
+end-to-end:
+
+```bash
+pixi run python -c "from rq1_dlnm.run_sweep import run; run()"
+```
+
+### Alternative: pip + miniforge
+
+If you'd rather use a standard `pip install -r requirements.txt`
+workflow, we recommend creating an isolated env first. **Miniforge**
+gives you a conda-forge-flavored `conda` that resolves PyTorch and
+SciPy reliably across platforms:
+
+```bash
+# 1. Install miniforge: https://github.com/conda-forge/miniforge
+# 2. Create the env:
+conda create -n rq1 python=3.14 -y
+conda activate rq1
+
+# 3. Install dependencies + this package (editable):
+pip install -r requirements.txt
+pip install -e .
+```
+
+Then run the suite and notebook the usual way:
+
+```bash
+pytest -q
+jupyter lab
+```
+
+Native `venv` works too, but on Apple Silicon you may need to install
+PyTorch separately via the wheel index that matches your accelerator
+(MPS, CUDA, or CPU).
+
 ## Reproducing RQ1
 
 Bootstrap the environment and run the test suite first:
