@@ -49,15 +49,18 @@ def build_lag_matrix(
     Lag k -> month (12 - k % 12) of year (y - k // 12).
     """
     lookup = env.set_index(["CBSAFP", "year", "month"])[column]
-    n = len(outcomes)
-    L = np.empty((n, max_lag + 1), dtype=float)
-    for i, row in enumerate(outcomes.itertuples(index=False)):
-        c, y = row.CBSAFP, row.year
-        for k in range(max_lag + 1):
-            year_back = k // 12
-            month = 12 - (k % 12)
-            L[i, k] = lookup.get((c, y - year_back, month), np.nan)
-    return L
+    cbsa = outcomes["CBSAFP"].to_numpy()
+    year = outcomes["year"].to_numpy()
+    k = np.arange(max_lag + 1)
+    year_back = k // 12
+    month = 12 - (k % 12)
+    cbsa_g, year_g = np.broadcast_arrays(cbsa[:, None], year[:, None] - year_back[None, :])
+    month_g = np.broadcast_to(month[None, :], cbsa_g.shape)
+    keys = pd.MultiIndex.from_arrays(
+        [cbsa_g.ravel(), year_g.ravel(), month_g.ravel()],
+        names=["CBSAFP", "year", "month"],
+    )
+    return lookup.reindex(keys).to_numpy(dtype=float).reshape(cbsa_g.shape)
 
 
 def keep_outcomes_with_lookback(
@@ -81,18 +84,12 @@ def impute_and_flag(L: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     covariate but callers should expect these rows to carry no exposure
     signal.
     """
-    miss_frac = np.isnan(L).mean(axis=1)
-    filled = L.copy()
-    for i in range(L.shape[0]):
-        row = L[i]
-        if not np.isnan(row).any():
-            continue
-        if miss_frac[i] >= 1.0:
-            filled[i] = 0.0
-            continue
-        med = np.nanmedian(row)
-        filled[i] = np.where(np.isnan(row), med, row)
-    return filled, miss_frac
+    nan_mask = np.isnan(L)
+    miss_frac = nan_mask.mean(axis=1)
+    L_safe = np.where(miss_frac[:, None] >= 1.0, 0.0, L)
+    with np.errstate(all="ignore"):
+        med = np.nan_to_num(np.nanmedian(L_safe, axis=1), nan=0.0)
+    return np.where(nan_mask, med[:, None], L_safe), miss_frac
 
 
 def prune_exposures(

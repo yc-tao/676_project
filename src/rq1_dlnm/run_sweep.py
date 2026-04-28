@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+from statsmodels.stats.multitest import multipletests
 
 from rq1_dlnm.basis import cross_basis
 from rq1_dlnm.data import (
@@ -39,20 +40,6 @@ class PairResult:
     p: float
     q: float
     converged: bool
-
-
-def bh_fdr(p: np.ndarray) -> np.ndarray:
-    """Benjamini-Hochberg adjusted q-values."""
-    p = np.asarray(p, dtype=float)
-    n = len(p)
-    order = np.argsort(p)
-    ranked = p[order]
-    q_ordered = ranked * n / (np.arange(n) + 1)
-    # enforce monotone
-    q_ordered = np.minimum.accumulate(q_ordered[::-1])[::-1]
-    q = np.empty_like(q_ordered)
-    q[order] = np.clip(q_ordered, 0, 1)
-    return q
 
 
 def _device() -> str:
@@ -90,9 +77,8 @@ def run(
             L = build_lag_matrix(env, out, column=exp_col, max_lag=MAX_LAG)
             L, miss = impute_and_flag(L)
             L_t = torch.tensor(L, dtype=torch.float32)
-            # Knots anchor the standardized polynomial basis. We use (min, p50,
-            # max) so z = (x - median) / (half-range) stays in [-1, 1] across
-            # the observed L, keeping z^2 and z^3 bounded.
+            # (min, median, max) keeps the standardized polynomial basis in [-1, 1],
+            # bounding z^2 and z^3 across observed L.
             v_knots = torch.tensor([
                 float(L_t.min()), float(L_t.flatten().median()), float(L_t.max()),
             ])
@@ -118,9 +104,7 @@ def run(
             cov = torch.linalg.inv(H)
             beta = m.beta.detach().cpu()
 
-            v_low = float(np.quantile(L, 0.10))
-            v_high = float(np.quantile(L, 0.90))
-            v_med = float(np.quantile(L, 0.50))
+            v_low, v_med, v_high = (float(q) for q in np.quantile(L, [0.10, 0.50, 0.90]))
             contrast = cumulative_rr_contrast(
                 beta=beta, cov=cov, v_low=v_low, v_high=v_high,
                 var_knots=v_knots, lag_knots=lag_knots, nlag=MAX_LAG + 1,
@@ -138,7 +122,7 @@ def run(
 
     df = pd.DataFrame([r.__dict__ for r in results])
     if len(df) > 0:
-        qvals = bh_fdr(df["p"].to_numpy())
+        qvals = multipletests(df["p"].to_numpy(), method="fdr_bh")[1]
         df["q"] = qvals
         for r, qv in zip(results, qvals):
             r.q = float(qv)

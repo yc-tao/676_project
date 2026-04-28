@@ -70,12 +70,3 @@ def test_observed_information_matches_finite_difference():
     assert torch.allclose(H, H.T, atol=1e-5)
     eig = torch.linalg.eigvalsh(H)
     assert (eig > 0).all()
-
-
-def test_bh_fdr_basic():
-    from rq1_dlnm.run_sweep import bh_fdr
-    import numpy as np
-    p = np.array([0.001, 0.01, 0.5, 0.5])
-    q = bh_fdr(p)
-    assert (q[:2] <= 0.1).all()
-    assert (q[2:] > 0.1).all()

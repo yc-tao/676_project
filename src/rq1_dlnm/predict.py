@@ -46,7 +46,7 @@ def cumulative_rr_contrast(
     var = float(c @ V @ c)
     se = float(np.sqrt(max(var, 0.0)))
     z = log_rr / se if se > 0 else 0.0
-    p = 2 * (1 - norm.cdf(abs(z))) if se > 0 else 1.0
+    p = 2 * norm.sf(abs(z)) if se > 0 else 1.0
     return Contrast(log_rr=log_rr, se=se, z=z, p=float(p))
 
 
@@ -58,9 +58,8 @@ def _lagwise_basis_row(v: float, *, var_knots: torch.Tensor, lag_knots: torch.Te
     """
     from rq1_dlnm.basis import poly_basis
     lag_idx = torch.arange(nlag, dtype=torch.float32)
-    Bl = poly_basis(lag_idx, lag_knots)               # (nlag, df_lag)
-    Bv = poly_basis(torch.full((1,), float(v)), var_knots).squeeze(0)  # (df_var,)
-    # per-lag row: outer(Bv, Bl[k]) flattened
+    Bl = poly_basis(lag_idx, lag_knots)
+    Bv = poly_basis(torch.full((1,), float(v)), var_knots).squeeze(0)
     rows = torch.einsum("v,kl->kvl", Bv, Bl).reshape(nlag, -1)
     return rows
 
